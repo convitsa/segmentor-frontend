@@ -1,0 +1,91 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { AuthGuard } from "@/components/auth-guard";
+import { SubscriptionGuard } from "@/components/subscription-guard";
+import { ProjectProvider } from "@/lib/project-context";
+import { AppSidebar } from "@/components/app-sidebar";
+import { cn } from "@/lib/utils";
+
+const SECTION_TITLES: Record<string, string> = {
+  dashboard: "Dashboard",
+  personalizations: "Personalizations",
+  audiences: "Audiences",
+  analytics: "Analytics",
+  setup: "Setup",
+  settings: "Settings",
+  billing: "Billing",
+};
+
+function DashboardInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isEditorPage = pathname.includes("/editor");
+
+  const [collapsed, setCollapsed] = useState(false);
+
+  const isSettingsPage = pathname === "/dashboard/settings";
+  const isBillingPage = pathname === "/dashboard/billing";
+  const section = isSettingsPage ? "settings" : isBillingPage ? "billing" : (searchParams.get("section") || "dashboard");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sidebar_collapsed");
+      if (saved === "true") setCollapsed(true);
+    } catch { /* localStorage unavailable */ }
+  }, []);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(prev => {
+      try {
+        localStorage.setItem("sidebar_collapsed", String(!prev));
+      } catch { /* localStorage unavailable */ }
+      return !prev;
+    });
+  }, []);
+
+  if (isEditorPage) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="min-h-svh bg-background">
+      <AppSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
+      <div
+        className={cn(
+          "min-h-svh transition-[margin-left] duration-200 ease-in-out flex flex-col",
+          collapsed ? "ml-14" : "ml-72"
+        )}
+      >
+        <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+          <span className="text-sm font-medium">
+            {SECTION_TITLES[section] || "Overview"}
+          </span>
+        </header>
+        <main className="flex-1 overflow-auto p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AuthGuard>
+      <SubscriptionGuard>
+        <ProjectProvider>
+          <Suspense fallback={null}>
+            <DashboardInner>{children}</DashboardInner>
+          </Suspense>
+        </ProjectProvider>
+      </SubscriptionGuard>
+    </AuthGuard>
+  );
+}
