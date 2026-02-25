@@ -33,6 +33,10 @@ ENV NEXT_PUBLIC_LANDING_DOMAIN=${NEXT_PUBLIC_LANDING_DOMAIN}
 
 RUN pnpm build
 
+# Copy static assets into standalone output (Next.js doesn't include these)
+RUN cp -r .next/static .next/standalone/.next/static
+RUN cp -r public .next/standalone/public
+
 # Remove default nginx site and install our config
 RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/app.conf
