@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import JavaScriptObfuscator from "javascript-obfuscator";
@@ -6,6 +6,15 @@ import JavaScriptObfuscator from "javascript-obfuscator";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const srcPath = join(__dirname, "../../backend/public/runtime.js");
 const outPath = join(__dirname, "../public/runtime.js");
+
+if (!existsSync(srcPath)) {
+  if (existsSync(outPath)) {
+    console.log("Backend source not available, using existing obfuscated runtime.js");
+    process.exit(0);
+  }
+  console.error("No runtime.js source found and no pre-built version exists");
+  process.exit(1);
+}
 
 const source = readFileSync(srcPath, "utf-8");
 
