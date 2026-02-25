@@ -38,6 +38,10 @@ import {
   Tag,
 } from "lucide-react";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_DOMAIN
+  ? `https://${process.env.NEXT_PUBLIC_APP_DOMAIN}`
+  : "";
+
 /* ─── Data ─── */
 
 const USE_CASES = ["E-commerce", "SaaS", "Portfolio", "Blog", "Agency"];
@@ -107,7 +111,7 @@ const FAQ_ITEMS = [
 const FOOTER_LINKS = {
   Product: [
     { label: "Features", href: "#features" },
-    { label: "Pricing", href: "/billing" },
+    { label: "Pricing", href: `${APP_URL}/billing` },
     { label: "Integrations", href: "#platforms" },
   ],
   Company: [
@@ -207,15 +211,15 @@ function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <Button asChild size="sm" className="rounded-full h-9 px-5 text-[14px]">
-              <Link href="/dashboard/projects">Dashboard</Link>
+              <a href={`${APP_URL}/dashboard/projects`}>Dashboard</a>
             </Button>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm" className="rounded-full h-9 px-4 text-[14px]">
-                <Link href="/auth/signin">Log in</Link>
+                <a href={`${APP_URL}/auth/signin`}>Log in</a>
               </Button>
               <Button asChild size="sm" className="rounded-full h-9 px-5 text-[14px] bg-foreground text-background hover:bg-foreground/90">
-                <Link href="/auth/signup">Get for free</Link>
+                <a href={`${APP_URL}/auth/signup`}>Get for free</a>
               </Button>
             </>
           )}
@@ -249,15 +253,15 @@ function Navbar() {
               <div className="flex gap-3 mt-4 pt-4 border-t border-border/40">
                 {user ? (
                   <Button asChild size="sm" className="flex-1 rounded-full">
-                    <Link href="/dashboard/projects">Dashboard</Link>
+                    <a href={`${APP_URL}/dashboard/projects`}>Dashboard</a>
                   </Button>
                 ) : (
                   <>
                     <Button asChild variant="ghost" size="sm" className="flex-1 rounded-full">
-                      <Link href="/auth/signin">Log in</Link>
+                      <a href={`${APP_URL}/auth/signin`}>Log in</a>
                     </Button>
                     <Button asChild size="sm" className="flex-1 rounded-full bg-foreground text-background hover:bg-foreground/90">
-                      <Link href="/auth/signup">Get for free</Link>
+                      <a href={`${APP_URL}/auth/signup`}>Get for free</a>
                     </Button>
                   </>
                 )}
@@ -931,10 +935,10 @@ function Pricing() {
 
             {/* CTA */}
             <Button asChild className="w-full h-12 rounded-full text-[15px] font-semibold mb-3">
-              <Link href="/billing">
+              <a href={`${APP_URL}/billing`}>
                 Get started now
                 <ArrowRight className="ml-2 size-4" />
-              </Link>
+              </a>
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               14-day money-back guarantee &middot; Cancel anytime
@@ -1024,9 +1028,9 @@ function FinalCTA() {
                 size="lg"
                 className="h-12 px-7 text-[15px] rounded-full bg-white text-[#098DB9] hover:bg-white/90 font-semibold"
               >
-                <Link href="/auth/signup">
+                <a href={`${APP_URL}/auth/signup`}>
                   Get started free
-                </Link>
+                </a>
               </Button>
               <Button
                 asChild
