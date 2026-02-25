@@ -32,12 +32,13 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus } from "lucide-react";
 
-const FIELDS = ["text", "visible", "href", "className", "style", "attribute"] as const;
+const FIELDS = ["text", "visible", "href", "src", "className", "style", "attribute"] as const;
 
 const FIELD_LABELS: Record<string, string> = {
   text: "Text Content",
   visible: "Visibility",
   href: "Link URL",
+  src: "Image/Source URL",
   className: "CSS Class",
   style: "Style",
   attribute: "Custom Attribute",

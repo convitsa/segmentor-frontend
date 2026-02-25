@@ -4,7 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { ConfirmProvider } from "@/components/confirm-dialog";
 import { ThemeProvider } from "next-themes";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { initPostHog, posthog } from "@/lib/posthog";
 import type { ReactNode } from "react";
@@ -36,7 +36,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <AuthProvider>
           <ConfirmProvider>
-            <PostHogPageviewTracker />
+            <Suspense fallback={null}>
+              <PostHogPageviewTracker />
+            </Suspense>
             {children}
           </ConfirmProvider>
         </AuthProvider>
