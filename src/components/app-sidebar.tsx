@@ -55,13 +55,16 @@ import {
   Globe,
   PanelLeft,
   CreditCard,
+  Plug,
 } from "lucide-react"
 
 const NAV_SECTIONS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "visitors", label: "Visitors", icon: Globe },
   { key: "personalizations", label: "Personalizations", icon: Sparkles },
   { key: "audiences", label: "Audiences", icon: Users },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
+  { key: "integrations", label: "Integrations", icon: Plug },
   { key: "setup", label: "Setup", icon: Settings },
   { key: "editor", label: "Editor", icon: Pencil },
 ]
@@ -265,7 +268,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   key={item.key}
                   onClick={() => navigateToSection(item.key)}
                   className={cn(
-                    "relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors w-full text-left",
+                    "relative flex items-center gap-2 rounded-md px-2 py-2 text-[15px] transition-colors w-full text-left",
                     active
                       ? "text-primary font-medium"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -280,7 +283,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       transition={{ type: "spring", stiffness: 350, damping: 30 }}
                     />
                   )}
-                  <item.icon className={cn("relative size-4 shrink-0", active && "text-primary")} />
+                  <item.icon className={cn("relative size-[18px] shrink-0", active && "text-primary")} />
                   {!collapsed && <span className="relative">{item.label}</span>}
                 </button>
               )
@@ -297,13 +300,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full text-left",
+                "flex items-center gap-2 rounded-md px-2 py-2 text-[15px] text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full text-left",
                 collapsed && "justify-center px-0"
               )}
               title={collapsed ? "Toggle theme" : undefined}
             >
-              <Sun className="size-4 shrink-0 dark:hidden" />
-              <Moon className="size-4 shrink-0 hidden dark:block" />
+              <Sun className="size-[18px] shrink-0 dark:hidden" />
+              <Moon className="size-[18px] shrink-0 hidden dark:block" />
               {!collapsed && <span>Toggle theme</span>}
             </button>
           </div>

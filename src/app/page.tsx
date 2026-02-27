@@ -284,21 +284,6 @@ function Hero() {
       <div className="mx-auto max-w-[1080px]">
         <div className="flex flex-col items-center text-center">
           {/* Pill badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05, duration: 0.5 }}
-          >
-            <Link
-              href="#features"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm text-muted-foreground hover:border-[#098DB9]/40 hover:text-foreground transition-colors shadow-sm"
-            >
-              <span className="size-1.5 rounded-full bg-[#098DB9]" />
-              New: Visual Editor v2
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </motion.div>
-
           {/* Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}

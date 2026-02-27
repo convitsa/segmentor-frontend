@@ -42,6 +42,8 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContaine
 import { ElementEditor } from "@/components/element-editor";
 import { AudienceForm } from "@/components/audience-form";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
+import { VisitorsDashboard } from "@/components/visitors-dashboard";
+import { IntegrationsSettings } from "@/components/integrations-settings";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -641,9 +643,19 @@ function ProjectContent() {
         </div>
       )}
 
+      {/* ========== VISITORS ========== */}
+      {section === "visitors" && (
+        <VisitorsDashboard projectId={projectId} />
+      )}
+
       {/* ========== ANALYTICS ========== */}
       {section === "analytics" && (
         <AnalyticsDashboard projectId={projectId} elements={elements} />
+      )}
+
+      {/* ========== INTEGRATIONS ========== */}
+      {section === "integrations" && (
+        <IntegrationsSettings projectId={projectId} />
       )}
 
       {/* ========== SETUP ========== */}

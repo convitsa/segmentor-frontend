@@ -11,12 +11,14 @@ import { cn } from "@/lib/utils";
 
 const SECTION_TITLES: Record<string, string> = {
   dashboard: "Dashboard",
+  visitors: "Visitors",
   personalizations: "Personalizations",
   audiences: "Audiences",
   analytics: "Analytics",
   setup: "Setup",
   settings: "Settings",
   billing: "Billing",
+  integrations: "Integrations",
 };
 
 function DashboardInner({ children }: { children: React.ReactNode }) {

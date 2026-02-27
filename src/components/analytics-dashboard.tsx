@@ -132,6 +132,24 @@ interface AnalyticsData {
   filterOptions: FilterOptions;
 }
 
+interface OverviewData {
+  period: { days: number; since: string };
+  totalVisitors: number;
+  previousPeriod: { totalVisitors: number; totalSessions: number };
+  newVisitors: number;
+  returningVisitors: number;
+  totalSessions: number;
+  totalPageviews: number;
+  avgSessionDuration: number;
+  bounceRate: number;
+  totalRevenue: number;
+  totalOrders: number;
+  dailyStats: { date: string; visitors: number; newVisitors: number; returningVisitors: number; sessions: number; pageviews: number }[];
+  countryStats: { countryCode: string; visitors: number; revenue: number }[];
+  deviceStats: { device: string; visitors: number }[];
+  pageStats: { url: string; pageviews: number }[];
+}
+
 interface Props { projectId: string; elements: ElementConfigDTO[]; }
 
 function calcDelta(current: number, previous: number): { pct: number; direction: "up" | "down" | "flat" } {
@@ -340,9 +358,12 @@ function FilterSelect({
 export function AnalyticsDashboard({ projectId, elements }: Props) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const [activeTab, setActiveTab] = useState<"overview" | "personalization">("overview");
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -375,7 +396,18 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
     }
   }, [projectId, days, filters]);
 
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    try {
+      const result = await api.get<OverviewData>(`/api/projects/${projectId}/analytics/overview?days=${days}`);
+      setOverviewData(result);
+    } catch { /* ignore */ } finally {
+      setOverviewLoading(false);
+    }
+  }, [projectId, days]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadOverview(); }, [loadOverview]);
 
   const avgPerDay = data && data.dailyStats.length > 0
     ? Math.round(data.totalImpressions / data.dailyStats.length)
@@ -430,8 +462,211 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
     return { value: c, label: `${emoji ? emoji + " " : ""}${name}` };
   });
 
+  const formatDur = (s: number) => {
+    if (s < 60) return `${s}s`;
+    return `${Math.floor(s / 60)}m ${s % 60}s`;
+  };
+
   return (
     <div className="space-y-5">
+      {/* ── Tab Selector ── */}
+      <div className="flex items-center gap-4 border-b pb-0">
+        <button
+          className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "overview" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("overview")}
+        >
+          Overview
+        </button>
+        <button
+          className={`pb-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "personalization" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("personalization")}
+        >
+          Personalization
+        </button>
+      </div>
+
+      {/* ── Overview Tab ── */}
+      {activeTab === "overview" && (
+        <div className="space-y-5">
+          {/* Time range selector */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
+              {[
+                { d: 7, label: "7D" },
+                { d: 14, label: "14D" },
+                { d: 30, label: "30D" },
+              ].map(({ d, label }) => (
+                <button
+                  key={d}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${days === d ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setDays(d)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={loadOverview}>
+              <RefreshCw className={`h-3.5 w-3.5 ${overviewLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+
+          {overviewData ? (
+            <>
+              {/* Stat cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Users className="h-3 w-3" /> Visitors
+                    </div>
+                    <div className="text-xl font-bold mt-1">{overviewData.totalVisitors}</div>
+                    <DeltaBadge current={overviewData.totalVisitors} previous={overviewData.previousPeriod.totalVisitors} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-xs text-muted-foreground">New / Returning</div>
+                    <div className="text-xl font-bold mt-1">{overviewData.newVisitors} / {overviewData.returningVisitors}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-xs text-muted-foreground">Sessions</div>
+                    <div className="text-xl font-bold mt-1">{overviewData.totalSessions}</div>
+                    <DeltaBadge current={overviewData.totalSessions} previous={overviewData.previousPeriod.totalSessions} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-xs text-muted-foreground">Pageviews</div>
+                    <div className="text-xl font-bold mt-1">{overviewData.totalPageviews}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-xs text-muted-foreground">Avg Duration</div>
+                    <div className="text-xl font-bold mt-1">{formatDur(overviewData.avgSessionDuration)}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-xs text-muted-foreground">Bounce Rate</div>
+                    <div className="text-xl font-bold mt-1">{overviewData.bounceRate}%</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {overviewData.totalRevenue > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="pt-4 pb-3">
+                      <div className="text-xs text-muted-foreground">Revenue</div>
+                      <div className="text-xl font-bold mt-1 text-green-600">${(overviewData.totalRevenue / 100).toFixed(2)}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3">
+                      <div className="text-xs text-muted-foreground">Orders</div>
+                      <div className="text-xl font-bold mt-1">{overviewData.totalOrders}</div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Visitors over time chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Visitors Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={overviewData.dailyStats}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1e293b" : "#e2e8f0"} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} stroke={isDark ? "#475569" : "#94a3b8"} />
+                        <YAxis tick={{ fontSize: 11 }} stroke={isDark ? "#475569" : "#94a3b8"} allowDecimals={false} />
+                        <ReTooltip contentStyle={TOOLTIP_STYLE} />
+                        <Area type="monotone" dataKey="returningVisitors" stackId="1" name="Returning" stroke="#098DB9" fill="#098DB9" fillOpacity={0.3} />
+                        <Area type="monotone" dataKey="newVisitors" stackId="1" name="New" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Pages + Devices */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Top Pages</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {overviewData.pageStats.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">No pageview data yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {overviewData.pageStats.slice(0, 10).map((p) => {
+                          const maxPv = overviewData.pageStats[0]?.pageviews || 1;
+                          return (
+                            <div key={p.url} className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="truncate max-w-[200px]">{p.url}</span>
+                                <span className="text-muted-foreground font-mono text-xs">{p.pageviews}</span>
+                              </div>
+                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-primary/60 rounded-full" style={{ width: `${(p.pageviews / maxPv) * 100}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Devices</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {overviewData.deviceStats.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">No device data yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {overviewData.deviceStats.map((d) => {
+                          const total = overviewData.deviceStats.reduce((s, x) => s + x.visitors, 0);
+                          const pct = total > 0 ? Math.round((d.visitors / total) * 100) : 0;
+                          return (
+                            <div key={d.device} className="flex items-center gap-3">
+                              {DEVICE_ICONS[d.device] || <Monitor className="h-4 w-4" />}
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="capitalize">{d.device}</span>
+                                  <span className="text-muted-foreground">{d.visitors} ({pct}%)</span>
+                                </div>
+                                <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
+                                  <div className="h-full bg-primary/60 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : overviewLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* ── Personalization Tab (existing analytics) ── */}
+      {activeTab === "personalization" && (<div className="space-y-5">
       {/* ── Toolbar ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 justify-between">
         <div className="flex items-center gap-2">
@@ -943,6 +1178,9 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
           )}
         </CardContent>
       </Card>
+    </div>
+      )}
+
     </div>
   );
 }
