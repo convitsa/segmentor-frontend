@@ -101,7 +101,6 @@ function PolarCard({
   connected: boolean;
   onUpdate: () => void;
 }) {
-  const [accessToken, setAccessToken] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -110,18 +109,16 @@ function PolarCard({
   const webhookUrl = `${API_URL.replace("http://localhost:4000", "https://api.segmentor.io")}/public/webhooks/polar/${projectId}`;
 
   async function handleConnect() {
-    if (!accessToken.trim() || !webhookSecret.trim()) {
-      toast.error("Both Access Token and Webhook Secret are required");
+    if (!webhookSecret.trim()) {
+      toast.error("Webhook Secret is required");
       return;
     }
     setSaving(true);
     try {
       await api.post(`/api/projects/${projectId}/integrations/polar`, {
-        accessToken: accessToken.trim(),
         webhookSecret: webhookSecret.trim(),
       });
       toast.success("Polar.sh connected successfully!");
-      setAccessToken("");
       setWebhookSecret("");
       onUpdate();
     } catch (err) {
@@ -185,7 +182,7 @@ function PolarCard({
                 Webhook URL
               </Label>
               <p className="text-xs text-muted-foreground mb-1">
-                Copy this URL and add it as a webhook endpoint in your Polar.sh dashboard.
+                Copy this URL and add it as a webhook endpoint in your Polar.sh organization: <strong>Settings &gt; Webhooks &gt; Add Endpoint</strong>. Set format to <strong>Raw</strong>.
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 bg-muted rounded-md px-3 py-2 text-xs font-mono break-all">
@@ -244,29 +241,44 @@ function PolarCard({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground space-y-1">
+            <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground space-y-2">
               <p className="font-medium text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4" />
                 How to connect
               </p>
-              <ol className="list-decimal list-inside space-y-0.5 text-xs">
-                <li>Go to your Polar.sh dashboard Settings &gt; Developers</li>
-                <li>Create a new Access Token (or use an existing one)</li>
-                <li>Create a webhook endpoint with the URL shown after connecting</li>
-                <li>Copy the webhook secret and paste it below</li>
-              </ol>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <p className="font-medium text-foreground mb-1">Step 1: Create a webhook in Polar.sh</p>
+                  <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                    <li>Open <a href="https://polar.sh" target="_blank" rel="noopener noreferrer" className="text-[#098DB9] hover:underline inline-flex items-center gap-0.5">polar.sh <ExternalLink className="h-2.5 w-2.5" /></a> and go to your organization</li>
+                    <li>Navigate to <strong>Settings &gt; Webhooks</strong> in the sidebar</li>
+                    <li>Click <strong>Add Endpoint</strong></li>
+                    <li>Paste this webhook URL:</li>
+                  </ol>
+                  <div className="flex items-center gap-2 mt-1.5 ml-1">
+                    <code className="flex-1 bg-muted rounded-md px-2.5 py-1.5 text-[11px] font-mono break-all">
+                      {webhookUrl}
+                    </code>
+                    <Button variant="outline" size="sm" className="h-7 px-2 shrink-0" onClick={copyWebhookUrl}>
+                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">Step 2: Configure the endpoint</p>
+                  <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                    <li>Set format to <strong>Raw</strong></li>
+                    <li>Set a secret (you&apos;ll paste it below)</li>
+                    <li>Subscribe to: <code className="bg-muted px-1 py-0.5 rounded font-mono">order.paid</code>, <code className="bg-muted px-1 py-0.5 rounded font-mono">subscription.created</code>, <code className="bg-muted px-1 py-0.5 rounded font-mono">subscription.canceled</code>, <code className="bg-muted px-1 py-0.5 rounded font-mono">order.refunded</code></li>
+                    <li>Save the endpoint</li>
+                  </ol>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-1">Step 3: Paste the secret below and connect</p>
+                </div>
+              </div>
             </div>
             <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="polar-token">Access Token</Label>
-                <Input
-                  id="polar-token"
-                  type="password"
-                  placeholder="polar_at_..."
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                />
-              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="polar-secret">Webhook Secret</Label>
                 <Input
