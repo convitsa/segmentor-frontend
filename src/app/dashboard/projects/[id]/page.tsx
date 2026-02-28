@@ -409,8 +409,8 @@ function ProjectContent() {
                     <AreaChart data={analyticsSummary.dailyStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="dashImpressions" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#098DB9" stopOpacity={0.2} />
-                          <stop offset="100%" stopColor="#098DB9" stopOpacity={0} />
+                          <stop offset="0%" stopColor="#171717" stopOpacity={0.2} />
+                          <stop offset="100%" stopColor="#171717" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="dashVisitors" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
@@ -439,14 +439,14 @@ function ProjectContent() {
                         }}
                         labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                       />
-                      <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#098DB9" strokeWidth={2} fill="url(#dashImpressions)" dot={false} activeDot={{ r: 3, fill: "#098DB9" }} />
+                      <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#171717" strokeWidth={2} fill="url(#dashImpressions)" dot={false} activeDot={{ r: 3, fill: "#171717" }} />
                       <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#10b981" strokeWidth={2} fill="url(#dashVisitors)" dot={false} activeDot={{ r: 3, fill: "#10b981" }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="flex items-center justify-center gap-4 mt-2">
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#098DB9" }} />
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#171717" }} />
                     Impressions
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">

@@ -124,6 +124,7 @@ export interface VisitorDTO {
   totalPageviews: number;
   totalEvents: number;
   email?: string | null;
+  name?: string | null;
   polarCustomerId?: string | null;
   totalRevenue: number;
   tags: string[];

@@ -12,7 +12,6 @@ import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { posthog } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,15 +57,35 @@ import {
   Plug,
 } from "lucide-react"
 
-const NAV_SECTIONS = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { key: "visitors", label: "Visitors", icon: Globe },
-  { key: "personalizations", label: "Personalizations", icon: Sparkles },
-  { key: "audiences", label: "Audiences", icon: Users },
-  { key: "analytics", label: "Analytics", icon: BarChart3 },
-  { key: "integrations", label: "Integrations", icon: Plug },
-  { key: "setup", label: "Setup", icon: Settings },
-  { key: "editor", label: "Editor", icon: Pencil },
+const NAV_GROUPS = [
+  {
+    label: null,
+    items: [
+      { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { key: "analytics", label: "Analytics", icon: BarChart3 },
+      { key: "visitors", label: "Visitors", icon: Globe },
+    ],
+  },
+  {
+    label: "Personalization",
+    items: [
+      { key: "personalizations", label: "Personalizations", icon: Sparkles },
+      { key: "audiences", label: "Audiences", icon: Users },
+      { key: "editor", label: "Editor", icon: Pencil },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { key: "integrations", label: "Integrations", icon: Plug },
+      { key: "setup", label: "Setup", icon: Settings },
+    ],
+  },
 ]
 
 const createSchema = z.object({
@@ -158,55 +177,49 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     }
   }
 
-  const w = collapsed ? "w-14" : "w-72"
-
   return (
     <>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out",
-          w
+          "fixed top-0 left-0 bottom-0 z-30 flex flex-col bg-white dark:bg-card text-sidebar-foreground transition-[width] duration-200 ease-in-out m-2 rounded-xl border shadow-sm overflow-hidden",
+          collapsed ? "w-[60px]" : "w-[calc(18rem-1rem)]"
         )}
       >
         {/* Header */}
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+        <div className={cn("flex h-14 shrink-0 items-center gap-2", collapsed ? "justify-center px-1.5" : "px-3")}>
           {!collapsed && (
             <div className="flex items-center flex-1 min-w-0">
-              <img src="/logo.svg" alt="Segmentor" className="h-6 shrink-0" />
+              <img src="/logo.svg" alt="Segmentor" className="h-6 shrink-0 dark:hidden" />
+              <img src="/logo-white.svg" alt="Segmentor" className="h-6 shrink-0 hidden dark:block" />
             </div>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onToggle}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={onToggle}>
             <PanelLeft className="size-4" />
           </Button>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="flex flex-col gap-1 p-2">
+          <div className={cn("flex flex-col gap-0.5 pt-3", collapsed ? "px-1.5" : "px-3")}>
             {/* Project Switcher */}
-            {!collapsed && (
-              <p className="px-2 pt-2 pb-1 text-[11px] font-medium text-sidebar-foreground/60 uppercase tracking-wider">
-                Project
-              </p>
-            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "flex items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full text-left",
-                    collapsed && "justify-center"
+                    "flex items-center gap-2.5 rounded-lg p-2 text-sm hover:bg-sidebar-accent transition-colors w-full mb-1",
+                    collapsed ? "justify-center" : "text-left"
                   )}
                 >
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Globe className="size-3.5" />
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
+                    {currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}
                   </div>
                   {!collapsed && (
                     <>
                       <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium text-sm leading-tight">
+                        <p className="truncate font-semibold text-[14px] leading-tight">
                           {currentProject?.name ?? "No project"}
                         </p>
                         {currentProject && (
-                          <p className="truncate text-[11px] text-muted-foreground leading-tight">
+                          <p className="truncate text-[11px] text-muted-foreground leading-tight mt-0.5">
                             {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
                           </p>
                         )}
@@ -250,85 +263,75 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Separator className="my-1" />
-
-            {/* Navigation */}
-            {!collapsed && (
-              <p className="px-2 pt-2 pb-1 text-[11px] font-medium text-sidebar-foreground/60 uppercase tracking-wider">
-                Navigation
-              </p>
-            )}
-            {NAV_SECTIONS.map((item) => {
-              const active =
-                item.key === "editor"
-                  ? pathname.includes("/editor")
-                  : activeSection === item.key && !pathname.includes("/editor")
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => navigateToSection(item.key)}
-                  className={cn(
-                    "relative flex items-center gap-2 rounded-md px-2 py-2 text-[15px] transition-colors w-full text-left",
-                    active
-                      ? "text-primary font-medium"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    collapsed && "justify-center px-0"
-                  )}
-                  title={collapsed ? item.label : undefined}
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="sidebar-active"
-                      className="absolute inset-0 rounded-md bg-primary/10"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
-                  )}
-                  <item.icon className={cn("relative size-[18px] shrink-0", active && "text-primary")} />
-                  {!collapsed && <span className="relative">{item.label}</span>}
-                </button>
-              )
-            })}
-
-            <Separator className="my-1" />
-
-            {/* Theme toggle */}
-            {!collapsed && (
-              <p className="px-2 pt-2 pb-1 text-[11px] font-medium text-sidebar-foreground/60 uppercase tracking-wider">
-                Preferences
-              </p>
-            )}
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-2 py-2 text-[15px] text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full text-left",
-                collapsed && "justify-center px-0"
-              )}
-              title={collapsed ? "Toggle theme" : undefined}
-            >
-              <Sun className="size-[18px] shrink-0 dark:hidden" />
-              <Moon className="size-[18px] shrink-0 hidden dark:block" />
-              {!collapsed && <span>Toggle theme</span>}
-            </button>
+            {/* Nav Groups */}
+            {NAV_GROUPS.map((group, gi) => (
+              <div key={gi} className={cn("flex flex-col gap-0.5", gi > 0 && "mt-4")}>
+                {group.label && !collapsed && (
+                  <p className="px-2 pb-1 text-[11px] font-medium text-sidebar-foreground/50 tracking-wide">
+                    {group.label}
+                  </p>
+                )}
+                {collapsed && gi > 0 && <Separator className="my-1" />}
+                {group.items.map((item) => {
+                  const active =
+                    item.key === "editor"
+                      ? pathname.includes("/editor")
+                      : activeSection === item.key && !pathname.includes("/editor")
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => navigateToSection(item.key)}
+                      className={cn(
+                        "relative flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] transition-colors w-full",
+                        active
+                          ? "bg-primary/5 dark:bg-primary/10 text-foreground font-medium"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        collapsed ? "justify-center px-0" : "text-left px-2"
+                      )}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <item.icon className={cn("size-[17px] shrink-0", active && "text-foreground")} />
+                      {!collapsed && <span>{item.label}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </ScrollArea>
 
-        {/* Footer: user */}
-        <div className="border-t p-2">
+        {/* Footer */}
+        <div className={cn("border-t py-2 flex flex-col gap-1", collapsed ? "px-1.5" : "px-3")}>
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full",
+              collapsed ? "justify-center px-0" : "text-left px-2"
+            )}
+            title={collapsed ? "Toggle theme" : undefined}
+          >
+            <Sun className="size-[17px] shrink-0 dark:hidden" />
+            <Moon className="size-[17px] shrink-0 hidden dark:block" />
+            {!collapsed && <span>Theme</span>}
+          </button>
+
+          {/* User */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 className={cn(
-                  "flex items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent transition-colors w-full text-left",
-                  collapsed && "justify-center"
+                  "flex items-center gap-2.5 rounded-lg p-2 text-sm hover:bg-sidebar-accent transition-colors w-full",
+                  collapsed ? "justify-center" : "text-left"
                 )}
               >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[11px] font-semibold">
                   {initials}
                 </div>
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium leading-tight">{userName}</p>
+                      <p className="truncate text-[13px] font-medium leading-tight">{userName}</p>
                       <p className="truncate text-[11px] text-muted-foreground leading-tight">{email}</p>
                     </div>
                     <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />

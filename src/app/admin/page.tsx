@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   if (!stats) return null;
 
   const cards = [
-    { label: "Total Users", value: stats.totalUsers.toLocaleString(), icon: Users, color: "text-blue-500" },
+    { label: "Total Users", value: stats.totalUsers.toLocaleString(), icon: Users, color: "text-foreground" },
     { label: "Active Subscriptions", value: stats.activeSubscriptions.toLocaleString(), icon: CreditCard, color: "text-green-500" },
     { label: "MRR", value: `$${(stats.mrr / 100).toFixed(2)}`, icon: DollarSign, color: "text-primary" },
     { label: "Total Projects", value: stats.totalProjects.toLocaleString(), icon: FolderKanban, color: "text-orange-500" },

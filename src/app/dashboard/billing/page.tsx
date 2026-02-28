@@ -64,7 +64,7 @@ interface SubResponse {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
     active: { label: "Active", className: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20" },
-    trialing: { label: "Trial", className: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20" },
+    trialing: { label: "Trial", className: "bg-primary/10 text-primary dark:text-primary border-primary/20" },
     past_due: { label: "Past Due", className: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20" },
     canceled: { label: "Canceled", className: "bg-muted text-muted-foreground border-border" },
   };
@@ -263,8 +263,8 @@ export default function DashboardBillingPage() {
 
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10">
-                    <Receipt className="size-4 text-blue-500" />
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
+                    <Receipt className="size-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Amount</p>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import { useSSE } from "@/lib/use-sse";
 import type {
   VisitorDTO,
   SessionDTO,
@@ -177,7 +178,7 @@ function countryFlag(code?: string | null) {
 }
 
 function displayName(v: VisitorDTO) {
-  return v.email || friendlyName(v.visitorId);
+  return v.name || v.email || friendlyName(v.visitorId);
 }
 
 function browserIcon(browser?: string | null) {
@@ -247,12 +248,14 @@ function VisitorsList({
 }) {
   const [visitors, setVisitors] = useState<VisitorDTO[]>([]);
   const [pagination, setPagination] = useState<PaginationDTO | null>(null);
+  const [stats, setStats] = useState<{ totalVisitors: number; identifiedVisitors: number; paidVisitors: number; totalRevenue: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("lastSeenAt");
   const [filterDevice, setFilterDevice] = useState("all");
   const [filterIdentified, setFilterIdentified] = useState("all");
+  const [filterRevenue, setFilterRevenue] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -265,21 +268,48 @@ function VisitorsList({
       if (search) params.set("search", search);
       if (filterDevice !== "all") params.set("device", filterDevice);
       if (filterIdentified !== "all") params.set("identified", filterIdentified);
+      if (filterRevenue === "paid") params.set("hasRevenue", "true");
 
       const res = await api.get<{
         visitors: VisitorDTO[];
         pagination: PaginationDTO;
+        stats: { totalVisitors: number; identifiedVisitors: number; paidVisitors: number; totalRevenue: number };
       }>(`/api/projects/${projectId}/visitors?${params.toString()}`);
       setVisitors(res.visitors);
       setPagination(res.pagination);
+      setStats(res.stats);
     } catch {
       /* ignore */
     } finally {
       setLoading(false);
     }
-  }, [projectId, page, sortBy, search, filterDevice, filterIdentified]);
+  }, [projectId, page, sortBy, search, filterDevice, filterIdentified, filterRevenue]);
 
   useEffect(() => { load(); }, [load]);
+
+  useSSE(projectId, useCallback((event) => {
+    if (event.type === "visitor_update") {
+      const d = event.data as { visitorId: string; timestamp: string; pageviews?: number; events?: number };
+      setVisitors((prev) =>
+        prev.map((v) =>
+          v.visitorId === d.visitorId
+            ? { ...v, lastSeenAt: d.timestamp, totalPageviews: v.totalPageviews + (d.pageviews || 0), totalEvents: v.totalEvents + (d.events || 0) }
+            : v
+        )
+      );
+    } else if (event.type === "purchase") {
+      const d = event.data as { visitorId: string; amount?: number };
+      if (d.visitorId && d.amount) {
+        setVisitors((prev) =>
+          prev.map((v) =>
+            v.visitorId === d.visitorId
+              ? { ...v, totalRevenue: v.totalRevenue + d.amount! }
+              : v
+          )
+        );
+      }
+    }
+  }, []));
 
   const liveCount = visitors.filter((v) => {
     return Date.now() - new Date(v.lastSeenAt).getTime() < 5 * 60 * 1000;
@@ -288,37 +318,35 @@ function VisitorsList({
   return (
     <div className="space-y-5">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-sm text-muted-foreground">Total Visitors</div>
-            <div className="text-2xl font-bold">{pagination?.total ?? 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-border">
+          <div className="p-4">
+            <div className="text-xs text-muted-foreground">Total Visitors</div>
+            <div className="text-2xl font-bold mt-0.5">{stats?.totalVisitors ?? pagination?.total ?? 0}</div>
+          </div>
+          <div className="p-4">
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
               </span>
               Live Now
             </div>
-            <div className="text-2xl font-bold text-green-600">{liveCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-sm text-muted-foreground">Identified</div>
-            <div className="text-2xl font-bold">{visitors.filter((v) => v.email).length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="text-sm text-muted-foreground">With Revenue</div>
-            <div className="text-2xl font-bold">{visitors.filter((v) => v.totalRevenue > 0).length}</div>
-          </CardContent>
-        </Card>
+            <div className="text-2xl font-bold text-green-600 mt-0.5">{liveCount}</div>
+          </div>
+          <div className="p-4">
+            <div className="text-xs text-muted-foreground">Identified</div>
+            <div className="text-2xl font-bold mt-0.5">{stats?.identifiedVisitors ?? 0}</div>
+          </div>
+          <div className="p-4">
+            <div className="text-xs text-muted-foreground">Paid Customers</div>
+            <div className="text-2xl font-bold mt-0.5">{stats?.paidVisitors ?? 0}</div>
+          </div>
+          <div className="p-4">
+            <div className="text-xs text-muted-foreground">Total Revenue</div>
+            <div className="text-2xl font-bold mt-0.5">{formatRevenue(stats?.totalRevenue ?? 0)}</div>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -356,13 +384,22 @@ function VisitorsList({
           </SelectContent>
         </Select>
         <Select value={filterIdentified} onValueChange={(v) => { setFilterIdentified(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Status" />
+          <SelectTrigger className="w-[130px]">
+            <SelectValue placeholder="Identity" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Visitors</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="true">Identified</SelectItem>
             <SelectItem value="false">Anonymous</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterRevenue} onValueChange={(v) => { setFilterRevenue(v); setPage(1); }}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Revenue" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={load}>
@@ -602,18 +639,26 @@ function VisitorDetailPanel({
           <div className="flex flex-col items-center text-center md:items-start md:text-left gap-3">
             <VisitorAvatar visitor={visitor} size="lg" />
             <div>
-              <div className="flex items-center gap-2 justify-center md:justify-start">
+              <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
                 <h2 className="text-lg font-semibold truncate max-w-[220px]">
                   {displayName(visitor)}
                 </h2>
+                {visitor.email && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400">
+                    Identified
+                  </Badge>
+                )}
                 {visitor.totalRevenue > 0 && (
                   <Badge className="text-[10px] px-1.5 py-0 h-4 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0">
-                    Customer
+                    Paid Customer
                   </Badge>
                 )}
               </div>
               {visitor.email && (
                 <p className="text-xs text-muted-foreground mt-0.5">{visitor.email}</p>
+              )}
+              {visitor.name && visitor.name !== visitor.email && (
+                <p className="text-xs text-muted-foreground">{visitor.name}</p>
               )}
             </div>
           </div>
@@ -651,12 +696,29 @@ function VisitorDetailPanel({
             <StatBox icon={<Eye className="h-3.5 w-3.5" />} label="Pageviews" value={visitor.totalPageviews} />
             <StatBox icon={<Laptop className="h-3.5 w-3.5" />} label="Sessions" value={visitor.totalSessions} />
             <StatBox icon={<Zap className="h-3.5 w-3.5" />} label="Events" value={visitor.totalEvents} />
-            {visitor.totalRevenue > 0 ? (
-              <StatBox icon={<DollarSign className="h-3.5 w-3.5" />} label="Revenue" value={formatRevenue(visitor.totalRevenue)} />
-            ) : (
-              <StatBox icon={<Clock className="h-3.5 w-3.5" />} label="First seen" value={formatTimeAgo(visitor.firstSeenAt)} />
-            )}
+            <StatBox icon={<DollarSign className="h-3.5 w-3.5" />} label="Revenue" value={visitor.totalRevenue > 0 ? formatRevenue(visitor.totalRevenue) : "$0"} />
           </div>
+
+          {/* Purchases */}
+          {purchases.length > 0 && (
+            <div className="space-y-2 pt-2 border-t">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Purchases</p>
+              {purchases.map((p: any, i: number) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded-md bg-muted/30">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ShoppingCart className="h-3 w-3 text-green-500 shrink-0" />
+                    <span className="truncate font-medium">{p.productName || p.type}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {p.amount && (
+                      <span className="font-semibold">{formatRevenue(p.amount)}</span>
+                    )}
+                    <span className="text-muted-foreground">{formatTimeAgo(p.timestamp)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* UTM / referrer */}
           {(visitor.firstUtmSource || visitor.firstReferrer) && (
@@ -772,7 +834,7 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
 
   switch (entry.kind) {
     case "pageview":
-      icon = <Eye className="h-3.5 w-3.5 text-blue-500" />;
+      icon = <Eye className="h-3.5 w-3.5 text-foreground" />;
       label = "Viewed page";
       detail = (data.url as string) || "";
       if (data.duration || data.scrollDepth) {

@@ -53,20 +53,20 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-svh bg-background">
+    <div className="min-h-svh bg-stone-100 dark:bg-neutral-950">
       <AppSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       <div
         className={cn(
           "min-h-svh transition-[margin-left] duration-200 ease-in-out flex flex-col",
-          collapsed ? "ml-14" : "ml-72"
+          collapsed ? "ml-[calc(60px+1rem)]" : "ml-[18rem]"
         )}
       >
-        <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+        <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 px-6">
           <span className="text-sm font-medium">
             {SECTION_TITLES[section] || "Overview"}
           </span>
         </header>
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 pt-0">
           {children}
         </main>
       </div>

@@ -38,7 +38,7 @@ export default function DocsPage() {
           {/* Step 1 */}
           <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="flex items-center gap-3 px-7 py-5 border-b border-border/40 bg-muted/10">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-[#098DB9] text-white text-sm font-bold">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#171717] text-white text-sm font-bold">
                 01
               </div>
               <div>
@@ -67,7 +67,7 @@ export default function DocsPage() {
           {/* Step 2 */}
           <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="flex items-center gap-3 px-7 py-5 border-b border-border/40 bg-muted/10">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-[#098DB9] text-white text-sm font-bold">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#171717] text-white text-sm font-bold">
                 02
               </div>
               <div>
@@ -90,7 +90,7 @@ export default function DocsPage() {
                   { icon: Rocket, label: "Show or hide elements" },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl border border-border/40 bg-muted/10 p-4 flex items-center gap-3">
-                    <item.icon className="size-4 text-[#098DB9] shrink-0" />
+                    <item.icon className="size-4 text-[#171717] shrink-0" />
                     <span className="text-xs font-medium">{item.label}</span>
                   </div>
                 ))}
@@ -101,7 +101,7 @@ export default function DocsPage() {
           {/* Step 3 */}
           <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="flex items-center gap-3 px-7 py-5 border-b border-border/40 bg-muted/10">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-[#098DB9] text-white text-sm font-bold">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-[#171717] text-white text-sm font-bold">
                 03
               </div>
               <div>
@@ -122,7 +122,7 @@ export default function DocsPage() {
                   "Custom audience segments",
                 ].map((rule) => (
                   <li key={rule} className="flex items-start gap-2.5 text-sm">
-                    <div className="size-1.5 rounded-full bg-[#098DB9] mt-2 shrink-0" />
+                    <div className="size-1.5 rounded-full bg-[#171717] mt-2 shrink-0" />
                     <span className="text-muted-foreground">{rule}</span>
                   </li>
                 ))}
@@ -135,14 +135,14 @@ export default function DocsPage() {
           </div>
 
           {/* Help */}
-          <div className="rounded-2xl border border-[#098DB9]/20 bg-[#098DB9]/[0.03] p-7 text-center">
+          <div className="rounded-2xl border border-[#171717]/20 bg-[#171717]/[0.03] p-7 text-center">
             <h3 className="text-lg font-semibold mb-2">Need help?</h3>
             <p className="text-sm text-muted-foreground mb-4">
               If you run into any issues, our team is here to help.
             </p>
             <Link
               href="/contact"
-              className="text-sm font-medium text-[#098DB9] hover:underline"
+              className="text-sm font-medium text-[#171717] hover:underline"
             >
               Contact support &rarr;
             </Link>

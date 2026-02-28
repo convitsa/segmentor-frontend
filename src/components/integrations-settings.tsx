@@ -250,7 +250,7 @@ function PolarCard({
                 <div>
                   <p className="font-medium text-foreground mb-1">Step 1: Create a webhook in Polar.sh</p>
                   <ol className="list-decimal list-inside space-y-0.5 pl-1">
-                    <li>Open <a href="https://polar.sh" target="_blank" rel="noopener noreferrer" className="text-[#098DB9] hover:underline inline-flex items-center gap-0.5">polar.sh <ExternalLink className="h-2.5 w-2.5" /></a> and go to your organization</li>
+                    <li>Open <a href="https://polar.sh" target="_blank" rel="noopener noreferrer" className="text-foreground font-medium hover:underline inline-flex items-center gap-0.5">polar.sh <ExternalLink className="h-2.5 w-2.5" /></a> and go to your organization</li>
                     <li>Navigate to <strong>Settings &gt; Webhooks</strong> in the sidebar</li>
                     <li>Click <strong>Add Endpoint</strong></li>
                     <li>Paste this webhook URL:</li>

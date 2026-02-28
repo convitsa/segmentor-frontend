@@ -121,7 +121,7 @@ export default function TermsPage() {
             <h2 className="text-xl font-semibold mb-3">10. Contact</h2>
             <p className="text-[15px] text-muted-foreground leading-relaxed">
               If you have questions about these terms, please contact us at{" "}
-              <a href="mailto:support@segmentor.io" className="text-[#098DB9] hover:underline">
+              <a href="mailto:support@segmentor.io" className="text-[#171717] hover:underline">
                 support@segmentor.io
               </a>.
             </p>

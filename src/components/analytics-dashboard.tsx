@@ -103,7 +103,7 @@ const DEVICE_ICONS: Record<string, React.ReactNode> = {
   tablet: <Tablet className="h-4 w-4" />,
 };
 
-const PIE_COLORS = ["#098DB9", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
+const PIE_COLORS = ["#171717", "#525252", "#a3a3a3", "#737373", "#d4d4d4"];
 
 interface DailyStat { date: string; impressions: number; visitors: number; }
 interface ElementStat { elementId: string; impressions: number; }
@@ -355,6 +355,84 @@ function FilterSelect({
   );
 }
 
+function OverviewRightPanel({ overviewData }: { overviewData: OverviewData }) {
+  const [tab, setTab] = useState<"countries" | "devices">("countries");
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b">
+        <div className="flex items-center gap-0">
+          <button
+            className={`text-sm font-semibold pb-0 mr-4 transition-colors ${tab === "countries" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setTab("countries")}
+          >
+            Countries
+          </button>
+          <button
+            className={`text-sm font-semibold pb-0 transition-colors ${tab === "devices" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setTab("devices")}
+          >
+            Devices
+          </button>
+        </div>
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          {tab === "countries" ? "Visitors" : "Visitors"}
+        </span>
+      </div>
+      <div className="divide-y">
+        {tab === "countries" ? (
+          overviewData.countryStats.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Globe className="h-6 w-6 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">No country data yet</p>
+            </div>
+          ) : (
+            overviewData.countryStats.slice(0, 8).map((cs) => {
+              const maxV = overviewData.countryStats[0]?.visitors || 1;
+              const pct = Math.round((cs.visitors / maxV) * 100);
+              return (
+                <div key={cs.countryCode} className="relative px-5 py-3 group hover:bg-muted/30 transition-colors">
+                  <div className="absolute inset-y-0 left-0 bg-violet-500/8 transition-all" style={{ width: `${pct}%` }} />
+                  <div className="relative flex items-center justify-between gap-3">
+                    <span className="text-sm flex items-center gap-2">
+                      <span>{countryFlag(cs.countryCode)}</span>
+                      <span className="truncate">{cs.countryCode}</span>
+                    </span>
+                    <span className="text-sm font-medium tabular-nums shrink-0">{cs.visitors.toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })
+          )
+        ) : (
+          overviewData.deviceStats.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Monitor className="h-6 w-6 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground">No device data yet</p>
+            </div>
+          ) : (
+            overviewData.deviceStats.map((d) => {
+              const total = overviewData.deviceStats.reduce((s, x) => s + x.visitors, 0);
+              const pct = total > 0 ? Math.round((d.visitors / total) * 100) : 0;
+              return (
+                <div key={d.device} className="relative px-5 py-3 group hover:bg-muted/30 transition-colors">
+                  <div className="absolute inset-y-0 left-0 bg-amber-500/8 transition-all" style={{ width: `${pct}%` }} />
+                  <div className="relative flex items-center justify-between gap-3">
+                    <span className="text-sm flex items-center gap-2">
+                      {DEVICE_ICONS[d.device] || <Monitor className="h-4 w-4" />}
+                      <span className="capitalize">{d.device}</span>
+                    </span>
+                    <span className="text-sm font-medium tabular-nums shrink-0">{d.visitors.toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AnalyticsDashboard({ projectId, elements }: Props) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -487,174 +565,170 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
 
       {/* ── Overview Tab ── */}
       {activeTab === "overview" && (
-        <div className="space-y-5">
-          {/* Time range selector */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
-              {[
-                { d: 7, label: "7D" },
-                { d: 14, label: "14D" },
-                { d: 30, label: "30D" },
-              ].map(({ d, label }) => (
-                <button
-                  key={d}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${days === d ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => setDays(d)}
-                >
-                  {label}
-                </button>
-              ))}
+        <div className="space-y-0">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+                <SelectTrigger className="h-8 w-[140px] text-xs rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="14">Last 14 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={loadOverview}>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={loadOverview} disabled={overviewLoading}>
               <RefreshCw className={`h-3.5 w-3.5 ${overviewLoading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
           </div>
 
           {overviewData ? (
             <>
-              {/* Stat cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Users className="h-3 w-3" /> Visitors
+              {/* Stat cards — single bordered container with dividers */}
+              <div className="rounded-xl border bg-card overflow-hidden">
+                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="size-2 rounded-full bg-[#171717]" />
+                      Visitors
                     </div>
-                    <div className="text-xl font-bold mt-1">{overviewData.totalVisitors}</div>
+                    <div className="text-3xl font-bold mt-1.5 tracking-tight">{overviewData.totalVisitors.toLocaleString()}</div>
                     <DeltaBadge current={overviewData.totalVisitors} previous={overviewData.previousPeriod.totalVisitors} />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="text-xs text-muted-foreground">New / Returning</div>
-                    <div className="text-xl font-bold mt-1">{overviewData.newVisitors} / {overviewData.returningVisitors}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="text-xs text-muted-foreground">Sessions</div>
-                    <div className="text-xl font-bold mt-1">{overviewData.totalSessions}</div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="size-2 rounded-full bg-violet-500" />
+                      Sessions
+                    </div>
+                    <div className="text-3xl font-bold mt-1.5 tracking-tight">{overviewData.totalSessions.toLocaleString()}</div>
                     <DeltaBadge current={overviewData.totalSessions} previous={overviewData.previousPeriod.totalSessions} />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="text-xs text-muted-foreground">Pageviews</div>
-                    <div className="text-xl font-bold mt-1">{overviewData.totalPageviews}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="text-xs text-muted-foreground">Avg Duration</div>
-                    <div className="text-xl font-bold mt-1">{formatDur(overviewData.avgSessionDuration)}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="text-xs text-muted-foreground">Bounce Rate</div>
-                    <div className="text-xl font-bold mt-1">{overviewData.bounceRate}%</div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="size-2 rounded-full bg-amber-500" />
+                      Pageviews
+                    </div>
+                    <div className="text-3xl font-bold mt-1.5 tracking-tight">{overviewData.totalPageviews.toLocaleString()}</div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="size-2 rounded-full bg-emerald-500" />
+                        Revenue
+                      </div>
+                      {overviewData.totalOrders > 0 && (
+                        <Badge variant="secondary" className="text-[10px] font-mono h-5 px-1.5">
+                          {overviewData.totalOrders} orders
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-3xl font-bold mt-1.5 tracking-tight">
+                      ${(overviewData.totalRevenue / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {overviewData.totalRevenue > 0 && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Card>
-                    <CardContent className="pt-4 pb-3">
-                      <div className="text-xs text-muted-foreground">Revenue</div>
-                      <div className="text-xl font-bold mt-1 text-green-600">${(overviewData.totalRevenue / 100).toFixed(2)}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="pt-4 pb-3">
-                      <div className="text-xs text-muted-foreground">Orders</div>
-                      <div className="text-xl font-bold mt-1">{overviewData.totalOrders}</div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Visitors over time chart */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Visitors Over Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[280px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={overviewData.dailyStats}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1e293b" : "#e2e8f0"} />
-                        <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} stroke={isDark ? "#475569" : "#94a3b8"} />
-                        <YAxis tick={{ fontSize: 11 }} stroke={isDark ? "#475569" : "#94a3b8"} allowDecimals={false} />
-                        <ReTooltip contentStyle={TOOLTIP_STYLE} />
-                        <Area type="monotone" dataKey="returningVisitors" stackId="1" name="Returning" stroke="#098DB9" fill="#098DB9" fillOpacity={0.3} />
-                        <Area type="monotone" dataKey="newVisitors" stackId="1" name="New" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                      </AreaChart>
-                    </ResponsiveContainer>
+              {/* Area chart */}
+              <div className="rounded-xl border bg-card mt-0 overflow-hidden">
+                <div className="p-4 pb-0">
+                  <div className="flex items-center justify-end gap-4">
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span className="size-2 rounded-full bg-[#171717]" /> Visitors
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span className="size-2 rounded-full bg-[#10b981]" /> New
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="h-[300px] px-2 pb-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={overviewData.dailyStats} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradOverviewVisitors" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#171717" stopOpacity={0.15} />
+                          <stop offset="100%" stopColor="#171717" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11 }}
+                        tickFormatter={(v) => {
+                          const d = new Date(v);
+                          return `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`;
+                        }}
+                        axisLine={false}
+                        tickLine={false}
+                        dy={8}
+                        stroke={isDark ? "#475569" : "#94a3b8"}
+                      />
+                      <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={36} allowDecimals={false} stroke={isDark ? "#475569" : "#94a3b8"} />
+                      <ReTooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                      />
+                      <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#171717" strokeWidth={2} fill="url(#gradOverviewVisitors)" dot={false} activeDot={{ r: 4, fill: "#171717", strokeWidth: 2, stroke: isDark ? "#0c1520" : "#fff" }} />
+                      <Area type="monotone" dataKey="newVisitors" name="New" stroke="#10b981" strokeWidth={1.5} fill="none" dot={false} activeDot={{ r: 3, fill: "#10b981", strokeWidth: 2, stroke: isDark ? "#0c1520" : "#fff" }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
-              {/* Top Pages + Devices */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Top Pages</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+              {/* Secondary stats row */}
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-xs text-muted-foreground">Bounce Rate</div>
+                  <div className="text-xl font-bold mt-1">{overviewData.bounceRate}%</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-xs text-muted-foreground">Avg Duration</div>
+                  <div className="text-xl font-bold mt-1">{formatDur(overviewData.avgSessionDuration)}</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-xs text-muted-foreground">New / Returning</div>
+                  <div className="text-xl font-bold mt-1">{overviewData.newVisitors} / {overviewData.returningVisitors}</div>
+                </div>
+              </div>
+
+              {/* Bottom panels — two side-by-side with tabs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {/* Top Pages */}
+                <div className="rounded-xl border bg-card overflow-hidden">
+                  <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b">
+                    <span className="text-sm font-semibold">Top Pages</span>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Pageviews</span>
+                  </div>
+                  <div className="divide-y">
                     {overviewData.pageStats.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4">No pageview data yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {overviewData.pageStats.slice(0, 10).map((p) => {
-                          const maxPv = overviewData.pageStats[0]?.pageviews || 1;
-                          return (
-                            <div key={p.url} className="space-y-1">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="truncate max-w-[200px]">{p.url}</span>
-                                <span className="text-muted-foreground font-mono text-xs">{p.pageviews}</span>
-                              </div>
-                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-primary/60 rounded-full" style={{ width: `${(p.pageviews / maxPv) * 100}%` }} />
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <FileText className="h-6 w-6 text-muted-foreground/30 mb-2" />
+                        <p className="text-xs text-muted-foreground">No pageview data yet</p>
                       </div>
+                    ) : (
+                      overviewData.pageStats.slice(0, 8).map((p) => {
+                        const maxPv = overviewData.pageStats[0]?.pageviews || 1;
+                        const pct = Math.round((p.pageviews / maxPv) * 100);
+                        return (
+                          <div key={p.url} className="relative px-5 py-3 group hover:bg-muted/30 transition-colors">
+                            <div className="absolute inset-y-0 left-0 bg-[#171717]/8 transition-all" style={{ width: `${pct}%` }} />
+                            <div className="relative flex items-center justify-between gap-3">
+                              <span className="text-sm truncate">{p.url}</span>
+                              <span className="text-sm font-medium tabular-nums shrink-0">{p.pageviews.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Devices</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {overviewData.deviceStats.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4">No device data yet.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {overviewData.deviceStats.map((d) => {
-                          const total = overviewData.deviceStats.reduce((s, x) => s + x.visitors, 0);
-                          const pct = total > 0 ? Math.round((d.visitors / total) * 100) : 0;
-                          return (
-                            <div key={d.device} className="flex items-center gap-3">
-                              {DEVICE_ICONS[d.device] || <Monitor className="h-4 w-4" />}
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="capitalize">{d.device}</span>
-                                  <span className="text-muted-foreground">{d.visitors} ({pct}%)</span>
-                                </div>
-                                <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-                                  <div className="h-full bg-primary/60 rounded-full" style={{ width: `${pct}%` }} />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {/* Countries + Devices */}
+                <OverviewRightPanel overviewData={overviewData} />
               </div>
             </>
           ) : overviewLoading ? (
@@ -912,7 +986,7 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="h-2 w-2 rounded-full bg-[#098DB9]" /> Impressions
+                  <span className="h-2 w-2 rounded-full bg-[#171717]" /> Impressions
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <span className="h-2 w-2 rounded-full bg-[#10b981]" /> Visitors
@@ -927,8 +1001,8 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                   <AreaChart data={data.dailyStats} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="gradImpressions" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#098DB9" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#098DB9" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#171717" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#171717" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="gradVisitors" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
@@ -949,7 +1023,7 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                       contentStyle={TOOLTIP_STYLE}
                       labelFormatter={v => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                     />
-                    <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#098DB9" strokeWidth={2} fill="url(#gradImpressions)" dot={false} activeDot={{ r: 4, fill: "#098DB9", strokeWidth: 2, stroke: "#fff" }} />
+                    <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#171717" strokeWidth={2} fill="url(#gradImpressions)" dot={false} activeDot={{ r: 4, fill: "#171717", strokeWidth: 2, stroke: "#fff" }} />
                     <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#10b981" strokeWidth={2} fill="url(#gradVisitors)" dot={false} activeDot={{ r: 4, fill: "#10b981", strokeWidth: 2, stroke: "#fff" }} />
                   </AreaChart>
                 </ResponsiveContainer>

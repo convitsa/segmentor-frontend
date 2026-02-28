@@ -103,7 +103,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold mb-3">7. Contact</h2>
             <p className="text-[15px] text-muted-foreground leading-relaxed">
               If you have questions about this privacy policy or your data, please contact us at{" "}
-              <a href="mailto:support@segmentor.io" className="text-[#098DB9] hover:underline">
+              <a href="mailto:support@segmentor.io" className="text-[#171717] hover:underline">
                 support@segmentor.io
               </a>.
             </p>

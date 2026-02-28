@@ -40,7 +40,7 @@ export default function ContactPage() {
         <section className="pt-20 pb-20 sm:pt-28 sm:pb-28">
           <div className="text-center mb-14">
             <h1 className="text-4xl sm:text-5xl font-bold tracking-[-0.03em] leading-tight">
-              Contact <span className="text-[#098DB9]">us</span>
+              Contact <span className="text-[#171717]">us</span>
             </h1>
             <p className="mt-5 text-lg text-muted-foreground max-w-lg mx-auto">
               Have a question or need help? We&apos;d love to hear from you.
@@ -53,7 +53,7 @@ export default function ContactPage() {
               <div className="rounded-2xl border border-border/50 bg-card p-7 sm:p-8">
                 {submitted ? (
                   <div className="py-12 text-center">
-                    <div className="flex size-14 items-center justify-center rounded-2xl bg-[#098DB9]/8 text-[#098DB9] mx-auto mb-5">
+                    <div className="flex size-14 items-center justify-center rounded-2xl bg-[#171717]/8 text-[#171717] mx-auto mb-5">
                       <Send className="size-6" />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">Message sent!</h3>
@@ -93,20 +93,20 @@ export default function ContactPage() {
             {/* Info cards */}
             <div className="space-y-4">
               <div className="rounded-2xl border border-border/50 bg-card p-6">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-[#098DB9]/8 text-[#098DB9] mb-4">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#171717]/8 text-[#171717] mb-4">
                   <Mail className="size-5" />
                 </div>
                 <h3 className="text-sm font-semibold mb-1">Email us</h3>
                 <a
                   href="mailto:support@segmentor.io"
-                  className="text-sm text-[#098DB9] hover:underline"
+                  className="text-sm text-[#171717] hover:underline"
                 >
                   support@segmentor.io
                 </a>
               </div>
 
               <div className="rounded-2xl border border-border/50 bg-card p-6">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-[#098DB9]/8 text-[#098DB9] mb-4">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#171717]/8 text-[#171717] mb-4">
                   <Clock className="size-5" />
                 </div>
                 <h3 className="text-sm font-semibold mb-1">Response time</h3>

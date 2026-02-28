@@ -25,7 +25,7 @@ export default function AboutPage() {
         {/* Hero */}
         <section className="pt-20 pb-16 sm:pt-28 sm:pb-20 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-[-0.03em] leading-tight">
-            About <span className="text-[#098DB9]">Segmentor</span>
+            About <span className="text-[#171717]">Segmentor</span>
           </h1>
           <p className="mt-5 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             We believe every visitor deserves a personalized experience.
@@ -75,7 +75,7 @@ export default function AboutPage() {
                 key={v.title}
                 className="rounded-2xl border border-border/50 bg-card p-7"
               >
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#098DB9]/8 text-[#098DB9] mb-5">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-[#171717]/8 text-[#171717] mb-5">
                   <v.icon className="size-5" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{v.title}</h3>
@@ -89,7 +89,7 @@ export default function AboutPage() {
 
         {/* CTA */}
         <section className="pb-20 sm:pb-28 text-center">
-          <div className="rounded-3xl bg-[#098DB9] p-10 sm:p-16 relative overflow-hidden">
+          <div className="rounded-3xl bg-[#171717] p-10 sm:p-16 relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent_60%)]" />
             <div className="relative z-10">
               <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mb-4">
@@ -101,7 +101,7 @@ export default function AboutPage() {
               <Button
                 asChild
                 size="lg"
-                className="h-12 px-7 rounded-full bg-white text-[#098DB9] hover:bg-white/90 font-semibold"
+                className="h-12 px-7 rounded-full bg-white text-[#171717] hover:bg-white/90 font-semibold"
               >
                 <Link href="/auth/signup">
                   Start for free <ArrowRight className="ml-2 size-4" />
