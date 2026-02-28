@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { posthog } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
+import { Favicon } from "@/components/favicon"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,14 +186,73 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           collapsed ? "w-[60px]" : "w-[calc(18rem-1rem)]"
         )}
       >
-        {/* Header */}
-        <div className={cn("flex h-14 shrink-0 items-center gap-2", collapsed ? "justify-center px-1.5" : "px-3")}>
-          {!collapsed && (
-            <div className="flex items-center flex-1 min-w-0">
-              <img src="/logo.svg" alt="Segmentor" className="h-6 shrink-0 dark:hidden" />
-              <img src="/logo-white.svg" alt="Segmentor" className="h-6 shrink-0 hidden dark:block" />
-            </div>
-          )}
+        {/* Project Switcher */}
+        <div className={cn("shrink-0 border-b flex items-center gap-1", collapsed ? "px-1.5 py-2 flex-col" : "px-3 py-2")}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg p-2 text-sm hover:bg-sidebar-accent transition-colors w-full",
+                  collapsed ? "justify-center" : "text-left"
+                )}
+              >
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted overflow-hidden">
+                  {currentProject?.siteUrl ? (
+                    <Favicon url={currentProject.siteUrl} size={20} />
+                  ) : (
+                    <span className="font-bold text-xs text-primary">{currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}</span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-semibold text-[14px] leading-tight">
+                        {currentProject?.name ?? "No project"}
+                      </p>
+                      {currentProject && (
+                        <p className="truncate text-[11px] text-muted-foreground leading-tight mt-0.5">
+                          {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="min-w-56 rounded-lg"
+              side={collapsed ? "right" : "bottom"}
+              align="start"
+              sideOffset={4}
+            >
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Projects
+              </DropdownMenuLabel>
+              {projects.map(p => (
+                <DropdownMenuItem
+                  key={p.id}
+                  onClick={() => switchProject(p.id)}
+                  className="gap-2 p-2"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-sm border overflow-hidden">
+                    <Favicon url={p.siteUrl} size={16} />
+                  </div>
+                  <span className="flex-1 truncate">{p.name}</span>
+                  {p.id === currentProjectId && (
+                    <Check className="size-4 text-primary" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setCreateOpen(true)} className="gap-2 p-2">
+                <div className="flex size-6 items-center justify-center rounded-md border border-dashed">
+                  <Plus className="size-4" />
+                </div>
+                <span className="text-muted-foreground">New project</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={onToggle}>
             <PanelLeft className="size-4" />
           </Button>
@@ -200,69 +260,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
         <ScrollArea className="flex-1">
           <div className={cn("flex flex-col gap-0.5 pt-3", collapsed ? "px-1.5" : "px-3")}>
-            {/* Project Switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg p-2 text-sm hover:bg-sidebar-accent transition-colors w-full mb-1",
-                    collapsed ? "justify-center" : "text-left"
-                  )}
-                >
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-                    {currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}
-                  </div>
-                  {!collapsed && (
-                    <>
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-semibold text-[14px] leading-tight">
-                          {currentProject?.name ?? "No project"}
-                        </p>
-                        {currentProject && (
-                          <p className="truncate text-[11px] text-muted-foreground leading-tight mt-0.5">
-                            {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
-                          </p>
-                        )}
-                      </div>
-                      <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
-                    </>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="min-w-56 rounded-lg"
-                side={collapsed ? "right" : "bottom"}
-                align="start"
-                sideOffset={4}
-              >
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Projects
-                </DropdownMenuLabel>
-                {projects.map(p => (
-                  <DropdownMenuItem
-                    key={p.id}
-                    onClick={() => switchProject(p.id)}
-                    className="gap-2 p-2"
-                  >
-                    <div className="flex size-6 items-center justify-center rounded-sm border">
-                      <Globe className="size-3.5 shrink-0" />
-                    </div>
-                    <span className="flex-1 truncate">{p.name}</span>
-                    {p.id === currentProjectId && (
-                      <Check className="size-4 text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setCreateOpen(true)} className="gap-2 p-2">
-                  <div className="flex size-6 items-center justify-center rounded-md border border-dashed">
-                    <Plus className="size-4" />
-                  </div>
-                  <span className="text-muted-foreground">New project</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             {/* Nav Groups */}
             {NAV_GROUPS.map((group, gi) => (
               <div key={gi} className={cn("flex flex-col gap-0.5", gi > 0 && "mt-4")}>

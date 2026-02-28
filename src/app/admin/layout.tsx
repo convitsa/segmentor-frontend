@@ -64,9 +64,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-stone-100 dark:bg-neutral-950">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 w-60 border-r bg-background/95 backdrop-blur z-30 flex flex-col">
+      <aside className="fixed inset-y-0 left-0 w-60 z-30 flex flex-col bg-white dark:bg-card m-2 rounded-xl border shadow-sm overflow-hidden">
         <div className="h-14 flex items-center gap-2 px-4 border-b">
           <Shield className="size-5 text-primary" />
           <span className="font-bold text-sm">Admin Panel</span>
@@ -107,13 +107,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main */}
-      <div className="ml-60">
-        <header className="sticky top-0 z-20 h-14 flex items-center px-6 border-b bg-background/95 backdrop-blur">
-          <h1 className="text-sm font-medium text-muted-foreground">
-            {NAV.find((n) => (n.href === "/admin" ? pathname === "/admin" : pathname.startsWith(n.href)))?.label || "Admin"}
-          </h1>
-        </header>
-        <main className="p-6">{children}</main>
+      <div className="ml-[calc(15rem+0.5rem)] py-2 pr-2 min-h-screen flex flex-col">
+        <div className="flex-1 flex flex-col rounded-xl border bg-background shadow-sm overflow-hidden">
+          <header className="sticky top-0 z-20 h-14 flex items-center px-6 border-b bg-background">
+            <h1 className="text-lg font-semibold">
+              {NAV.find((n) => (n.href === "/admin" ? pathname === "/admin" : pathname.startsWith(n.href)))?.label || "Admin"}
+            </h1>
+          </header>
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
       </div>
     </div>
   );

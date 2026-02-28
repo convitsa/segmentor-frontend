@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { useSocket } from "@/lib/use-socket";
+import { Favicon } from "@/components/favicon";
 import type {
   VisitorDTO,
   SessionDTO,
@@ -22,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import {
   Sheet,
   SheetContent,
@@ -33,6 +37,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Clock,
   DollarSign,
   Eye,
@@ -51,8 +56,10 @@ import {
   ShoppingCart,
   Activity,
   MapPin,
-  X,
   Copy,
+  Filter,
+  ArrowUpDown,
+  RotateCcw,
 } from "lucide-react";
 
 /* ─── Friendly Name Generator ─── */
@@ -214,9 +221,9 @@ export function VisitorsDashboard({ projectId }: Props) {
       <VisitorsList projectId={projectId} onSelect={openVisitor} />
       <Sheet open={sheetOpen} onOpenChange={(open) => { if (!open) closeVisitor(); }}>
         <SheetContent
-          side="bottom"
+          side="right"
           showCloseButton={false}
-          className="h-[85vh] rounded-t-2xl p-0 flex flex-col"
+          className="w-full sm:max-w-2xl lg:max-w-4xl p-0 flex flex-col"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Visitor Details</SheetTitle>
@@ -250,12 +257,57 @@ function VisitorsList({
   const [pagination, setPagination] = useState<PaginationDTO | null>(null);
   const [stats, setStats] = useState<{ totalVisitors: number; identifiedVisitors: number; paidVisitors: number; totalRevenue: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const newVisitorIds = useRef(new Set<string>());
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("lastSeenAt");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterDevice, setFilterDevice] = useState("all");
+  const [filterBrowser, setFilterBrowser] = useState("all");
+  const [filterOs, setFilterOs] = useState("all");
   const [filterIdentified, setFilterIdentified] = useState("all");
   const [filterRevenue, setFilterRevenue] = useState("all");
+  const [filterLive, setFilterLive] = useState("all");
+  const [filterCountry, setFilterCountry] = useState("all");
+  const [filterLanguage, setFilterLanguage] = useState("all");
+  const [filterUtmSource, setFilterUtmSource] = useState("all");
+  const [filterUtmMedium, setFilterUtmMedium] = useState("all");
+  const [filterUtmCampaign, setFilterUtmCampaign] = useState("all");
+  const [filterReferrer, setFilterReferrer] = useState("all");
+  const [filterTag, setFilterTag] = useState("all");
+  const [filterSeenAfter, setFilterSeenAfter] = useState("");
+  const [filterSeenBefore, setFilterSeenBefore] = useState("");
+
+  type FilterOptions = {
+    countries: string[]; languages: string[]; browsers: string[]; os: string[];
+    devices: string[]; referrers: string[]; utmSources: string[]; utmMediums: string[];
+    utmCampaigns: string[]; tags: string[];
+  };
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+
+  useEffect(() => {
+    api.get<FilterOptions>(`/api/projects/${projectId}/visitors/filters`)
+      .then(setFilterOptions)
+      .catch(() => {});
+  }, [projectId]);
+
+  const activeFilterCount = [
+    filterDevice !== "all", filterBrowser !== "all", filterOs !== "all",
+    filterIdentified !== "all", filterRevenue !== "all", filterLive !== "all",
+    filterCountry !== "all", filterLanguage !== "all",
+    filterUtmSource !== "all", filterUtmMedium !== "all",
+    filterUtmCampaign !== "all", filterReferrer !== "all", filterTag !== "all",
+  ].filter(Boolean).length;
+
+  const clearAllFilters = useCallback(() => {
+    setFilterDevice("all"); setFilterBrowser("all"); setFilterOs("all");
+    setFilterIdentified("all"); setFilterRevenue("all"); setFilterLive("all");
+    setFilterCountry("all"); setFilterLanguage("all");
+    setFilterUtmSource("all"); setFilterUtmMedium("all"); setFilterUtmCampaign("all");
+    setFilterReferrer("all"); setFilterTag("all");
+    setFilterSeenAfter(""); setFilterSeenBefore("");
+    setPage(1);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -264,11 +316,23 @@ function VisitorsList({
       params.set("page", String(page));
       params.set("limit", "50");
       params.set("sortBy", sortBy);
-      params.set("sortOrder", "desc");
+      params.set("sortOrder", sortOrder);
       if (search) params.set("search", search);
       if (filterDevice !== "all") params.set("device", filterDevice);
+      if (filterBrowser !== "all") params.set("browser", filterBrowser);
+      if (filterOs !== "all") params.set("os", filterOs);
       if (filterIdentified !== "all") params.set("identified", filterIdentified);
       if (filterRevenue === "paid") params.set("hasRevenue", "true");
+      if (filterLive === "live") params.set("live", "true");
+      if (filterCountry !== "all") params.set("country", filterCountry);
+      if (filterLanguage !== "all") params.set("language", filterLanguage);
+      if (filterUtmSource !== "all") params.set("utmSource", filterUtmSource);
+      if (filterUtmMedium !== "all") params.set("utmMedium", filterUtmMedium);
+      if (filterUtmCampaign !== "all") params.set("utmCampaign", filterUtmCampaign);
+      if (filterReferrer !== "all") params.set("referrer", filterReferrer);
+      if (filterTag !== "all") params.set("tag", filterTag);
+      if (filterSeenAfter) params.set("seenAfter", filterSeenAfter);
+      if (filterSeenBefore) params.set("seenBefore", filterSeenBefore);
 
       const res = await api.get<{
         visitors: VisitorDTO[];
@@ -283,29 +347,11 @@ function VisitorsList({
     } finally {
       setLoading(false);
     }
-  }, [projectId, page, sortBy, search, filterDevice, filterIdentified, filterRevenue]);
+  }, [projectId, page, sortBy, sortOrder, search, filterDevice, filterBrowser, filterOs, filterIdentified, filterRevenue, filterLive, filterCountry, filterLanguage, filterUtmSource, filterUtmMedium, filterUtmCampaign, filterReferrer, filterTag, filterSeenAfter, filterSeenBefore]);
 
   useEffect(() => { load(); }, [load]);
 
-  const debouncedLoadRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleRefetch = useCallback(() => {
-    if (debouncedLoadRef.current) clearTimeout(debouncedLoadRef.current);
-    debouncedLoadRef.current = setTimeout(() => {
-      debouncedLoadRef.current = null;
-      load();
-    }, 1500);
-  }, [load]);
-  useEffect(
-    () => () => {
-      if (debouncedLoadRef.current) clearTimeout(debouncedLoadRef.current);
-    },
-    []
-  );
-
   useSocket(projectId, useCallback((event) => {
-    if (event.type === "visitor_update" || event.type.startsWith("live:") || event.type === "purchase") {
-      scheduleRefetch();
-    }
     if (event.type === "visitor_update") {
       const d = event.data as {
         visitorId: string;
@@ -314,10 +360,34 @@ function VisitorsList({
         events?: number;
         email?: string | null;
         country?: string | null;
+        countryCode?: string | null;
+        region?: string | null;
         city?: string | null;
+        language?: string | null;
         device?: string | null;
+        browser?: string | null;
+        os?: string | null;
+        referrer?: string | null;
+        utmSource?: string | null;
+        utmMedium?: string | null;
+        utmCampaign?: string | null;
       };
       if (!d.visitorId || !d.timestamp) return;
+      const extras: Partial<VisitorDTO> = {};
+      if (d.email) extras.email = d.email;
+      if (d.country) extras.country = d.country;
+      if (d.countryCode) extras.countryCode = d.countryCode;
+      if (d.region) extras.region = d.region;
+      if (d.city) extras.city = d.city;
+      if (d.language) extras.language = d.language;
+      if (d.device) extras.device = d.device;
+      if (d.browser) extras.browser = d.browser;
+      if (d.os) extras.os = d.os;
+      if (d.referrer) extras.firstReferrer = d.referrer;
+      if (d.utmSource) extras.firstUtmSource = d.utmSource;
+      if (d.utmMedium) extras.firstUtmMedium = d.utmMedium;
+      if (d.utmCampaign) extras.firstUtmCampaign = d.utmCampaign;
+
       setVisitors((prev) => {
         const existing = prev.find((v) => v.visitorId === d.visitorId);
         if (existing) {
@@ -328,15 +398,12 @@ function VisitorsList({
                   lastSeenAt: d.timestamp,
                   totalPageviews: v.totalPageviews + (d.pageviews || 0),
                   totalEvents: v.totalEvents + (d.events || 0),
-                  ...(d.email && { email: d.email }),
-                  ...(d.country && { country: d.country }),
-                  ...(d.city && { city: d.city }),
-                  ...(d.device && { device: d.device }),
+                  ...extras,
                 }
               : v
           );
         }
-        const minimal: VisitorDTO = {
+        const newVisitor: VisitorDTO = {
           id: `live-${d.visitorId}`,
           projectId,
           visitorId: d.visitorId,
@@ -347,12 +414,10 @@ function VisitorsList({
           tags: [],
           firstSeenAt: d.timestamp,
           lastSeenAt: d.timestamp,
-          ...(d.email && { email: d.email }),
-          ...(d.country && { country: d.country }),
-          ...(d.city && { city: d.city }),
-          ...(d.device && { device: d.device }),
+          ...extras,
         };
-        return [minimal, ...prev];
+        newVisitorIds.current.add(d.visitorId);
+        return [newVisitor, ...prev];
       });
     } else if (event.type === "purchase") {
       const d = event.data as { visitorId: string; amount?: number };
@@ -387,11 +452,12 @@ function VisitorsList({
             firstSeenAt: d.timestamp!,
             lastSeenAt: d.timestamp!,
           };
+          newVisitorIds.current.add(d.visitorId);
           return [minimal, ...prev];
         });
       }
     }
-  }, [projectId, scheduleRefetch]));
+  }, [projectId]));
 
   const liveCount = visitors.filter((v) => {
     return Date.now() - new Date(v.lastSeenAt).getTime() < 5 * 60 * 1000;
@@ -432,82 +498,139 @@ function VisitorsList({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search visitors..."
-            className="pl-9"
+            placeholder="Search by name, email, city..."
+            className="pl-9 h-9"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="lastSeenAt">Last Seen</SelectItem>
-            <SelectItem value="firstSeenAt">First Seen</SelectItem>
-            <SelectItem value="totalPageviews">Pageviews</SelectItem>
-            <SelectItem value="totalSessions">Sessions</SelectItem>
-            <SelectItem value="totalRevenue">Revenue</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterDevice} onValueChange={(v) => { setFilterDevice(v); setPage(1); }}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue placeholder="Device" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Devices</SelectItem>
-            <SelectItem value="desktop">Desktop</SelectItem>
-            <SelectItem value="mobile">Mobile</SelectItem>
-            <SelectItem value="tablet">Tablet</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterIdentified} onValueChange={(v) => { setFilterIdentified(v); setPage(1); }}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue placeholder="Identity" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="true">Identified</SelectItem>
-            <SelectItem value="false">Anonymous</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterRevenue} onValueChange={(v) => { setFilterRevenue(v); setPage(1); }}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Revenue" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="icon" onClick={load}>
+
+        <DateRangePicker
+          from={filterSeenAfter}
+          to={filterSeenBefore}
+          onChangeFrom={(v) => { setFilterSeenAfter(v); setPage(1); }}
+          onChangeTo={(v) => { setFilterSeenBefore(v); setPage(1); }}
+        />
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5">
+              <Filter className="h-3.5 w-3.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[460px] p-0" align="end">
+            <div className="p-3 border-b flex items-center justify-between">
+              <span className="text-sm font-medium">Filters</span>
+              {activeFilterCount > 0 && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={clearAllFilters}>
+                  <RotateCcw className="h-3 w-3" />
+                  Clear all
+                </Button>
+              )}
+            </div>
+            <div className="p-3 space-y-3 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2">
+                <FilterSelect label="Device" value={filterDevice} onChange={(v) => { setFilterDevice(v); setPage(1); }}
+                  options={[["all", "All Devices"], ...(filterOptions?.devices || []).map((d): [string, string] => {
+                    const icon = d === "desktop" ? "🖥️" : d === "mobile" ? "📱" : d === "tablet" ? "📲" : "💻";
+                    return [d, `${icon} ${d.charAt(0).toUpperCase() + d.slice(1)}`];
+                  })]} />
+                <FilterSelect label="Browser" value={filterBrowser} onChange={(v) => { setFilterBrowser(v); setPage(1); }}
+                  options={[["all", "All Browsers"], ...(filterOptions?.browsers || []).map((b): [string, string] => {
+                    const icon: Record<string, string> = { Chrome: "🟢", Firefox: "🦊", Safari: "🧭", Edge: "🔵", Opera: "🔴", Samsung: "🟣" };
+                    return [b, `${icon[b] || "🌐"} ${b}`];
+                  })]} />
+                <FilterSelect label="OS" value={filterOs} onChange={(v) => { setFilterOs(v); setPage(1); }}
+                  options={[["all", "All OS"], ...(filterOptions?.os || []).map((o): [string, string] => {
+                    const icon: Record<string, string> = { Windows: "🪟", macOS: "🍎", Linux: "🐧", Android: "🤖", iOS: "📱", ChromeOS: "🟢" };
+                    return [o, `${icon[o] || "💻"} ${o}`];
+                  })]} />
+                <FilterSelect label="Identity" value={filterIdentified} onChange={(v) => { setFilterIdentified(v); setPage(1); }}
+                  options={[["all", "All Visitors"], ["true", "✅ Identified"], ["false", "👻 Anonymous"]]} />
+                <FilterSelect label="Revenue" value={filterRevenue} onChange={(v) => { setFilterRevenue(v); setPage(1); }}
+                  options={[["all", "All"], ["paid", "💵 Paid Only"]]} />
+                <FilterSelect label="Status" value={filterLive} onChange={(v) => { setFilterLive(v); setPage(1); }}
+                  options={[["all", "All Status"], ["live", "🟢 Live Now"]]} />
+              </div>
+
+              {(filterOptions?.countries?.length || filterOptions?.languages?.length) ? (
+                <div className="border-t pt-3 grid grid-cols-2 gap-2">
+                  {(filterOptions?.countries?.length ?? 0) > 0 && (
+                    <FilterSelect label="Country" value={filterCountry} onChange={(v) => { setFilterCountry(v); setPage(1); }}
+                      options={[["all", "All Countries"], ...(filterOptions?.countries || []).map((c): [string, string] => {
+                        const [code, name] = c.split("|");
+                        return [code, `${countryFlag(code)} ${name || code}`];
+                      })]} />
+                  )}
+                  {(filterOptions?.languages?.length ?? 0) > 0 && (
+                    <FilterSelect label="Language" value={filterLanguage} onChange={(v) => { setFilterLanguage(v); setPage(1); }}
+                      options={[["all", "All Languages"], ...(filterOptions?.languages || []).map((l): [string, string] => [l, `🗣️ ${l}`])]} />
+                  )}
+                  {(filterOptions?.referrers?.length ?? 0) > 0 && (
+                    <FilterSelect label="Referrer" value={filterReferrer} onChange={(v) => { setFilterReferrer(v); setPage(1); }}
+                      options={[["all", "All Referrers"], ...(filterOptions?.referrers || []).map((r): [string, string] => [r, `🔗 ${r}`])]} />
+                  )}
+                  {(filterOptions?.tags?.length ?? 0) > 0 && (
+                    <FilterSelect label="Tag" value={filterTag} onChange={(v) => { setFilterTag(v); setPage(1); }}
+                      options={[["all", "All Tags"], ...(filterOptions?.tags || []).map((t): [string, string] => [t, `🏷️ ${t}`])]} />
+                  )}
+                </div>
+              ) : null}
+
+              {(filterOptions?.utmSources?.length || filterOptions?.utmMediums?.length || filterOptions?.utmCampaigns?.length) ? (
+                <div className="border-t pt-3 grid grid-cols-2 gap-2">
+                  {(filterOptions?.utmSources?.length ?? 0) > 0 && (
+                    <FilterSelect label="UTM Source" value={filterUtmSource} onChange={(v) => { setFilterUtmSource(v); setPage(1); }}
+                      options={[["all", "All Sources"], ...(filterOptions?.utmSources || []).map((s): [string, string] => [s, `📡 ${s}`])]} />
+                  )}
+                  {(filterOptions?.utmMediums?.length ?? 0) > 0 && (
+                    <FilterSelect label="UTM Medium" value={filterUtmMedium} onChange={(v) => { setFilterUtmMedium(v); setPage(1); }}
+                      options={[["all", "All Mediums"], ...(filterOptions?.utmMediums || []).map((m): [string, string] => [m, `📢 ${m}`])]} />
+                  )}
+                  {(filterOptions?.utmCampaigns?.length ?? 0) > 0 && (
+                    <FilterSelect label="UTM Campaign" value={filterUtmCampaign} onChange={(v) => { setFilterUtmCampaign(v); setPage(1); }}
+                      options={[["all", "All Campaigns"], ...(filterOptions?.utmCampaigns || []).map((c): [string, string] => [c, `🎯 ${c}`])]} />
+                  )}
+                </div>
+              ) : null}
+
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load}>
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Visitor Rows */}
-      <div className="space-y-2">
+      {/* Visitor Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="py-4">
-                <div className="flex items-center gap-4">
+            <Card key={i} className="shadow-none py-0 gap-0">
+              <CardContent className="px-4 py-4">
+                <div className="flex items-center gap-3">
                   <Skeleton className="h-10 w-10 rounded-full shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-64" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-20" />
                   </div>
-                  <Skeleton className="h-4 w-20" />
                 </div>
               </CardContent>
             </Card>
           ))
         ) : visitors.length === 0 ? (
-          <Card>
+          <Card className="col-span-full">
             <CardContent className="py-16 text-center">
               <User className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
               <p className="text-muted-foreground">No visitors found.</p>
@@ -517,9 +640,22 @@ function VisitorsList({
             </CardContent>
           </Card>
         ) : (
-          visitors.map((v) => (
-            <VisitorRow key={v.visitorId} visitor={v} onClick={() => onSelect(v.visitorId)} />
-          ))
+          <>
+            {visitors.map((v) => {
+              const isNew = newVisitorIds.current.has(v.visitorId);
+              return (
+                <motion.div
+                  key={v.visitorId}
+                  initial={isNew ? { opacity: 0, y: -10 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                  onAnimationComplete={() => newVisitorIds.current.delete(v.visitorId)}
+                >
+                  <VisitorRow visitor={v} onClick={() => onSelect(v.visitorId)} />
+                </motion.div>
+              );
+            })}
+          </>
         )}
       </div>
 
@@ -543,6 +679,26 @@ function VisitorsList({
   );
 }
 
+/* ─── Filter helpers ─── */
+
+function FilterSelect({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (v: string) => void; options: [string, string][];
+}) {
+  return (
+    <div className="min-w-0">
+      <label className="text-xs font-medium text-muted-foreground mb-1 block">{label}</label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-8 text-xs w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(([val, lbl]) => <SelectItem key={val} value={val}>{lbl}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 /* ─── Visitor Row (like the reference design) ─── */
 
 function VisitorRow({ visitor: v, onClick }: { visitor: VisitorDTO; onClick: () => void }) {
@@ -550,18 +706,23 @@ function VisitorRow({ visitor: v, onClick }: { visitor: VisitorDTO; onClick: () 
 
   return (
     <Card
-      className="cursor-pointer transition-colors hover:bg-muted/40 group"
+      className="cursor-pointer transition-colors hover:bg-muted/40 group shadow-none py-0 gap-0"
       onClick={onClick}
     >
-      <CardContent className="py-3.5 px-4">
-        <div className="flex items-center gap-4">
-          {/* Avatar */}
+      <CardContent className="px-4 py-4">
+        <div className="flex items-start gap-3">
           <VisitorAvatar visitor={v} />
-
-          {/* Name + meta */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm truncate">{displayName(v)}</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-medium text-sm truncate max-w-[140px]">{displayName(v)}</span>
+              {isLive && (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               {v.email && (
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-medium border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400">
                   Identified
@@ -572,14 +733,8 @@ function VisitorRow({ visitor: v, onClick }: { visitor: VisitorDTO; onClick: () 
                   Customer
                 </Badge>
               )}
-              {isLive && (
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-                </span>
-              )}
             </div>
-            <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground flex-wrap">
               {v.countryCode && (
                 <span className="flex items-center gap-1">
                   <span className="text-sm leading-none">{countryFlag(v.countryCode)}</span>
@@ -592,35 +747,30 @@ function VisitorRow({ visitor: v, onClick }: { visitor: VisitorDTO; onClick: () 
                   <span className="capitalize">{v.device}</span>
                 </span>
               )}
-              {v.os && <span>{v.os}</span>}
               {v.browser && <span>{browserIcon(v.browser)}</span>}
             </div>
           </div>
-
-          {/* Right side stats */}
-          <div className="hidden sm:flex items-center gap-6 text-sm shrink-0">
-            <div className="text-right">
-              <div className="font-medium tabular-nums">{v.totalPageviews}</div>
-              <div className="text-[10px] text-muted-foreground">pages</div>
-            </div>
-            <div className="text-right">
-              <div className="font-medium tabular-nums">{v.totalSessions}</div>
-              <div className="text-[10px] text-muted-foreground">sessions</div>
-            </div>
-            {v.totalRevenue > 0 && (
-              <div className="text-right">
-                <div className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {formatRevenue(v.totalRevenue)}
-                </div>
-                <div className="text-[10px] text-muted-foreground">revenue</div>
-              </div>
-            )}
-          </div>
-
-          {/* Time */}
-          <div className="text-xs text-muted-foreground text-right shrink-0 w-16">
+          <div className="text-[11px] text-muted-foreground shrink-0">
             {formatTimeAgo(v.lastSeenAt)}
           </div>
+        </div>
+
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs">
+          <div>
+            <span className="font-medium tabular-nums">{v.totalPageviews}</span>
+            <span className="text-muted-foreground ml-1">pages</span>
+          </div>
+          <div>
+            <span className="font-medium tabular-nums">{v.totalSessions}</span>
+            <span className="text-muted-foreground ml-1">sessions</span>
+          </div>
+          {v.totalRevenue > 0 && (
+            <div className="ml-auto">
+              <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                {formatRevenue(v.totalRevenue)}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -640,13 +790,16 @@ function VisitorDetailPanel({
   visitorId: string;
   onClose: () => void;
 }) {
+  type TimelineItem = TimelineEntry & { _uid: number };
   const [visitor, setVisitor] = useState<VisitorDTO | null>(null);
   const [sessions, setSessions] = useState<SessionDTO[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [timelinePagination, setTimelinePagination] = useState<PaginationDTO | null>(null);
   const [timelinePage, setTimelinePage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const nextUid = useRef(0);
+  const newTimelineUids = useRef(new Set<number>());
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -668,7 +821,7 @@ function VisitorDetailPanel({
         timeline: TimelineEntry[];
         pagination: PaginationDTO;
       }>(`/api/projects/${projectId}/visitors/${visitorId}/timeline?page=${timelinePage}&limit=50`);
-      setTimeline(res.timeline);
+      setTimeline(res.timeline.map((e) => ({ ...e, _uid: nextUid.current++ })));
       setTimelinePagination(res.pagination);
     } catch { /* ignore */ }
   }, [projectId, visitorId, timelinePage]);
@@ -676,18 +829,130 @@ function VisitorDetailPanel({
   useEffect(() => { loadDetail(); }, [loadDetail]);
   useEffect(() => { loadTimeline(); }, [loadTimeline]);
 
+  const prependTimeline = useCallback((entry: TimelineEntry) => {
+    const uid = nextUid.current++;
+    newTimelineUids.current.add(uid);
+    setTimeline((prev) => [{ ...entry, _uid: uid }, ...prev]);
+  }, []);
+
+  useSocket(projectId, useCallback((event) => {
+    const d = event.data as Record<string, unknown>;
+    const evtVisitorId = d.visitorId as string | undefined;
+    if (!evtVisitorId || evtVisitorId !== visitorId) return;
+
+    const ts = (d.timestamp as string) || new Date().toISOString();
+
+    if (event.type === "visitor_update") {
+      setVisitor((prev) => {
+        if (!prev) return prev;
+        const patch: Partial<VisitorDTO> = {
+          lastSeenAt: ts,
+          totalPageviews: prev.totalPageviews + ((d.pageviews as number) || 0),
+          totalEvents: prev.totalEvents + ((d.events as number) || 0),
+        };
+        if (d.email) patch.email = d.email as string;
+        if (d.country) patch.country = d.country as string;
+        if (d.countryCode) patch.countryCode = d.countryCode as string;
+        if (d.region) patch.region = d.region as string;
+        if (d.city) patch.city = d.city as string;
+        if (d.language) patch.language = d.language as string;
+        if (d.device) patch.device = d.device as string;
+        if (d.browser) patch.browser = d.browser as string;
+        if (d.os) patch.os = d.os as string;
+        if (d.referrer) patch.firstReferrer = d.referrer as string;
+        if (d.utmSource) patch.firstUtmSource = d.utmSource as string;
+        if (d.utmMedium) patch.firstUtmMedium = d.utmMedium as string;
+        if (d.utmCampaign) patch.firstUtmCampaign = d.utmCampaign as string;
+        return { ...prev, ...patch };
+      });
+    } else if (event.type === "purchase") {
+      const amount = (d.amount as number) || 0;
+      setVisitor((prev) => prev ? { ...prev, totalRevenue: prev.totalRevenue + amount } : prev);
+      setPurchases((prev) => [{ ...d, timestamp: ts }, ...prev]);
+      prependTimeline({ kind: "purchase", timestamp: ts, data: d });
+    } else if (event.type === "live:pageview") {
+      prependTimeline({
+        kind: "pageview",
+        timestamp: ts,
+        data: { url: d.url, title: d.title, referrer: d.referrer },
+      });
+    } else if (event.type === "live:pageview_end") {
+      setTimeline((prev) => prev.map((e) => {
+        if (e.kind === "pageview" && e.data.url === d.url) {
+          return { ...e, data: { ...e.data, duration: d.duration, scrollDepth: d.scrollDepth } };
+        }
+        return e;
+      }));
+    } else if (event.type === "live:click") {
+      prependTimeline({
+        kind: "click",
+        timestamp: ts,
+        data: { url: d.url, properties: { tag: d.tag, text: d.text, href: d.href } },
+      });
+    } else if (event.type === "live:form_submit") {
+      prependTimeline({
+        kind: "form_submit",
+        timestamp: ts,
+        data: { url: d.url, properties: { formId: d.formId, action: d.action, method: d.method } },
+      });
+    } else if (event.type === "live:identify") {
+      setVisitor((prev) => prev ? { ...prev, email: (d.email as string) || prev.email } : prev);
+    } else if (event.type === "live:custom") {
+      prependTimeline({
+        kind: (d.name as string) || "custom",
+        timestamp: ts,
+        data: { url: d.url, properties: d.properties || {} },
+      });
+    } else if (event.type === "live:impression") {
+      prependTimeline({
+        kind: "impression",
+        timestamp: ts,
+        data: { elementId: d.elementId, variantId: d.variantId, ruleId: d.ruleId, url: d.url },
+      });
+    }
+  }, [visitorId]));
+
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-md px-6">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-16 w-16 rounded-full" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-3 w-56" />
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
+          {/* Left skeleton */}
+          <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r p-6 flex flex-col gap-5">
+            <div className="flex flex-col items-center md:items-start gap-3">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-3 w-44" />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Skeleton className="h-16 rounded-lg" />
+              <Skeleton className="h-16 rounded-lg" />
+              <Skeleton className="h-16 rounded-lg" />
+              <Skeleton className="h-16 rounded-lg" />
             </div>
           </div>
-          <Skeleton className="h-[300px] w-full" />
+          {/* Right skeleton */}
+          <div className="flex-1 p-6 space-y-4 min-h-0">
+            <Skeleton className="h-4 w-48" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Skeleton className="h-5 w-5 rounded-full shrink-0 mt-0.5" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                  <Skeleton className="h-3 w-12 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -703,18 +968,8 @@ function VisitorDetailPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Drag handle + close */}
-      <div className="flex items-center justify-center pt-3 pb-1">
-        <div className="h-1 w-10 rounded-full bg-muted-foreground/20" />
-      </div>
-      <div className="absolute top-3 right-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
       {/* Content */}
-      <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+      <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
         {/* Left: Profile */}
         <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r p-6 flex flex-col gap-5 overflow-y-auto">
           {/* Avatar + Name */}
@@ -808,7 +1063,7 @@ function VisitorDetailPanel({
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Acquisition</p>
               {visitor.firstReferrer && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Globe className="h-3 w-3" />
+                  <Favicon url={visitor.firstReferrer} size={14} />
                   <span className="truncate">{visitor.firstReferrer}</span>
                 </div>
               )}
@@ -835,7 +1090,7 @@ function VisitorDetailPanel({
         </div>
 
         {/* Right: Timeline */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Date header */}
           <div className="px-6 py-3 border-b bg-muted/30 flex items-center justify-between">
             <span className="text-sm font-medium">
@@ -848,14 +1103,27 @@ function VisitorDetailPanel({
             )}
           </div>
 
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-6 space-y-1">
               {timeline.length === 0 ? (
                 <p className="text-center text-muted-foreground py-12">No activity recorded yet.</p>
               ) : (
-                timeline.map((entry, i) => (
-                  <TimelineRow key={i} entry={entry} />
-                ))
+                <>
+                  {timeline.map((entry) => {
+                    const isNew = newTimelineUids.current.has(entry._uid);
+                    return (
+                      <motion.div
+                        key={entry._uid}
+                        initial={isNew ? { opacity: 0, y: -10 } : false}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                        onAnimationComplete={() => newTimelineUids.current.delete(entry._uid)}
+                      >
+                        <TimelineRow entry={entry} />
+                      </motion.div>
+                    );
+                  })}
+                </>
               )}
 
               {timelinePagination && timelinePagination.totalPages > 1 && (
@@ -912,13 +1180,15 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
   let icon: React.ReactNode;
   let label: string;
   let detail = "";
+  let detailUrl = "";
   let props: Record<string, unknown> | null = null;
 
   switch (entry.kind) {
     case "pageview":
       icon = <Eye className="h-3.5 w-3.5 text-foreground" />;
       label = "Viewed page";
-      detail = (data.url as string) || "";
+      detailUrl = (data.url as string) || "";
+      detail = detailUrl;
       if (data.duration || data.scrollDepth) {
         const parts: string[] = [];
         if (data.duration) parts.push(formatDuration(data.duration as number));
@@ -931,18 +1201,20 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
       label = "Clicked";
       const cProps = data.properties as Record<string, string> | undefined;
       detail = cProps?.text || cProps?.tag || "";
-      if (cProps?.href) detail += ` → ${cProps.href}`;
+      if (cProps?.href) { detailUrl = cProps.href; detail += ` → ${cProps.href}`; }
       break;
     case "form_submit":
       icon = <FileText className="h-3.5 w-3.5 text-purple-500" />;
       label = "Submitted form";
       const fProps = data.properties as Record<string, string> | undefined;
       detail = fProps?.formId || fProps?.action || "";
+      if (fProps?.action) detailUrl = fProps.action;
       break;
     case "impression":
       icon = <Sparkles className="h-3.5 w-3.5 text-indigo-500" />;
       label = "Personalization shown";
       detail = `Element: ${data.elementId || "—"}, Variant: ${data.variantId || "—"}`;
+      if (data.url) detailUrl = data.url as string;
       break;
     case "purchase":
       icon = <ShoppingCart className="h-3.5 w-3.5 text-green-500" />;
@@ -955,6 +1227,7 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
     default:
       icon = <Zap className="h-3.5 w-3.5 text-yellow-500" />;
       label = `Triggered event: ${entry.kind}`;
+      if (data.url) detailUrl = data.url as string;
       if (data.properties && typeof data.properties === "object") {
         props = data.properties as Record<string, unknown>;
         const count = Object.keys(props).length;
@@ -971,7 +1244,10 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{label}</span>
           {detail && (
-            <span className="text-xs text-muted-foreground truncate max-w-[400px]">{detail}</span>
+            <span className="text-xs text-muted-foreground truncate max-w-[400px] inline-flex items-center gap-1">
+              {detailUrl && <Favicon url={detailUrl} size={12} />}
+              {detail}
+            </span>
           )}
           {props && (
             <button

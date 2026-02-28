@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { Favicon } from "@/components/favicon";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -140,8 +141,9 @@ export default function AdminProjectsPage() {
                           href={p.siteUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                          className="inline-flex items-center gap-1.5 text-primary hover:underline"
                         >
+                          <Favicon url={p.siteUrl} size={14} />
                           <span className="truncate">{p.siteUrl}</span>
                           <ExternalLink className="size-3 shrink-0" />
                         </a>

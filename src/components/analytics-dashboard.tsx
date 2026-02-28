@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
 import { api } from "@/lib/api";
+import { Favicon } from "@/components/favicon";
 import type { ElementConfigDTO } from "@/lib/types/dto";
 import {
   Card,
@@ -391,7 +392,7 @@ function OverviewRightPanel({ overviewData }: { overviewData: OverviewData }) {
               const pct = Math.round((cs.visitors / maxV) * 100);
               return (
                 <div key={cs.countryCode} className="relative px-5 py-3 group hover:bg-muted/30 transition-colors">
-                  <div className="absolute inset-y-0 left-0 bg-violet-500/8 transition-all" style={{ width: `${pct}%` }} />
+                  <div className="absolute inset-y-0 left-0 bg-[#FAFAFA] transition-all" style={{ width: `${pct}%` }} />
                   <div className="relative flex items-center justify-between gap-3">
                     <span className="text-sm flex items-center gap-2">
                       <span>{countryFlag(cs.countryCode)}</span>
@@ -415,7 +416,7 @@ function OverviewRightPanel({ overviewData }: { overviewData: OverviewData }) {
               const pct = total > 0 ? Math.round((d.visitors / total) * 100) : 0;
               return (
                 <div key={d.device} className="relative px-5 py-3 group hover:bg-muted/30 transition-colors">
-                  <div className="absolute inset-y-0 left-0 bg-amber-500/8 transition-all" style={{ width: `${pct}%` }} />
+                  <div className="absolute inset-y-0 left-0 bg-[#FAFAFA] transition-all" style={{ width: `${pct}%` }} />
                   <div className="relative flex items-center justify-between gap-3">
                     <span className="text-sm flex items-center gap-2">
                       {DEVICE_ICONS[d.device] || <Monitor className="h-4 w-4" />}
@@ -588,10 +589,10 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
 
           {overviewData ? (
             <>
-              {/* Stat cards — single bordered container with dividers */}
+              {/* Stat cards + chart — merged container */}
               <div className="rounded-xl border bg-card overflow-hidden">
-                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border">
-                  <div className="p-5">
+                <div className="flex border-b">
+                  <div className="flex-1 p-5 border-r border-border">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="size-2 rounded-full bg-[#171717]" />
                       Visitors
@@ -599,7 +600,7 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                     <div className="text-3xl font-bold mt-1.5 tracking-tight">{overviewData.totalVisitors.toLocaleString()}</div>
                     <DeltaBadge current={overviewData.totalVisitors} previous={overviewData.previousPeriod.totalVisitors} />
                   </div>
-                  <div className="p-5">
+                  <div className="flex-1 p-5 border-r border-border">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="size-2 rounded-full bg-violet-500" />
                       Sessions
@@ -607,14 +608,14 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                     <div className="text-3xl font-bold mt-1.5 tracking-tight">{overviewData.totalSessions.toLocaleString()}</div>
                     <DeltaBadge current={overviewData.totalSessions} previous={overviewData.previousPeriod.totalSessions} />
                   </div>
-                  <div className="p-5">
+                  <div className="flex-1 p-5 border-r border-border">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="size-2 rounded-full bg-amber-500" />
                       Pageviews
                     </div>
                     <div className="text-3xl font-bold mt-1.5 tracking-tight">{overviewData.totalPageviews.toLocaleString()}</div>
                   </div>
-                  <div className="p-5">
+                  <div className="flex-1 p-5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span className="size-2 rounded-full bg-emerald-500" />
@@ -631,10 +632,6 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Area chart */}
-              <div className="rounded-xl border bg-card mt-0 overflow-hidden">
                 <div className="p-4 pb-0">
                   <div className="flex items-center justify-end gap-4">
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -715,9 +712,9 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                         const pct = Math.round((p.pageviews / maxPv) * 100);
                         return (
                           <div key={p.url} className="relative px-5 py-3 group hover:bg-muted/30 transition-colors">
-                            <div className="absolute inset-y-0 left-0 bg-[#171717]/8 transition-all" style={{ width: `${pct}%` }} />
+                            <div className="absolute inset-y-0 left-0 bg-[#FAFAFA] transition-all" style={{ width: `${pct}%` }} />
                             <div className="relative flex items-center justify-between gap-3">
-                              <span className="text-sm truncate">{p.url}</span>
+                              <span className="text-sm truncate flex items-center gap-1.5"><Favicon url={p.url} size={14} />{p.url}</span>
                               <span className="text-sm font-medium tabular-nums shrink-0">{p.pageviews.toLocaleString()}</span>
                             </div>
                           </div>
@@ -850,6 +847,7 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                 )}
                 {filters.url && (
                   <Badge variant="secondary" className="text-xs gap-1 pl-2 pr-1 h-6 rounded-full">
+                    <Favicon url={filters.url} size={12} />
                     {filters.url}
                     <button onClick={() => setFilters(prev => ({ ...prev, url: "" }))} className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"><X className="h-3 w-3" /></button>
                   </Badge>
@@ -878,87 +876,50 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
         </Card>
       </div>
 
-      {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="group hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Impressions</p>
-                <p className="text-3xl font-bold tracking-tight">{data.totalImpressions.toLocaleString()}</p>
-                <div className="flex items-center gap-2">
-                  <DeltaBadge current={data.totalImpressions} previous={data.previousPeriod.totalImpressions} />
-                  <span className="text-[10px] text-muted-foreground">vs prev {days}d</span>
-                </div>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-500 dark:text-sky-400 shrink-0">
-                <Eye className="h-5 w-5" />
-              </div>
+      {/* ── Stat Cards + World Map — merged container ── */}
+      <div className="rounded-xl border bg-card text-card-foreground overflow-hidden">
+        <div className="flex border-b">
+          <div className="flex-1 p-5 border-r border-border">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Impressions</p>
+            <p className="text-3xl font-bold tracking-tight mt-1.5">{data.totalImpressions.toLocaleString()}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <DeltaBadge current={data.totalImpressions} previous={data.previousPeriod.totalImpressions} />
+              <span className="text-[10px] text-muted-foreground">vs prev {days}d</span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-2">~{avgPerDay}/day avg</p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="group hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Unique Visitors</p>
-                <p className="text-3xl font-bold tracking-tight">{data.uniqueVisitors.toLocaleString()}</p>
-                <div className="flex items-center gap-2">
-                  <DeltaBadge current={data.uniqueVisitors} previous={data.previousPeriod.uniqueVisitors} />
-                  <span className="text-[10px] text-muted-foreground">vs prev {days}d</span>
-                </div>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shrink-0">
-                <Users className="h-5 w-5" />
-              </div>
+          <div className="flex-1 p-5 border-r border-border">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Unique Visitors</p>
+            <p className="text-3xl font-bold tracking-tight mt-1.5">{data.uniqueVisitors.toLocaleString()}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <DeltaBadge current={data.uniqueVisitors} previous={data.previousPeriod.uniqueVisitors} />
+              <span className="text-[10px] text-muted-foreground">vs prev {days}d</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="group hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Top Country</p>
-                <p className="text-2xl font-bold tracking-tight truncate">
-                  {topCountry ? `${countryFlag(topCountry.countryCode)} ${topCountry.country}` : "—"}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-500 dark:text-violet-400 shrink-0">
-                <Globe className="h-5 w-5" />
-              </div>
-            </div>
+          <div className="flex-1 p-5 border-r border-border">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Top Country</p>
+            <p className="text-2xl font-bold tracking-tight truncate mt-1.5">
+              {topCountry ? `${countryFlag(topCountry.countryCode)} ${topCountry.country}` : "—"}
+            </p>
             {topCountry && <p className="text-[11px] text-muted-foreground mt-2">{topCountry.impressions.toLocaleString()} impressions &middot; {topCountry.uniqueVisitors} visitors</p>}
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="group hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Top Page</p>
-                <p className="text-lg font-bold tracking-tight truncate font-mono">
-                  {topPage ? topPage.url : "—"}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 dark:text-amber-400 shrink-0">
-                <FileText className="h-5 w-5" />
-              </div>
-            </div>
+          <div className="flex-1 p-5">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Top Page</p>
+            <p className="text-lg font-bold tracking-tight truncate font-mono flex items-center gap-1.5 mt-1.5">
+              {topPage ? <><Favicon url={topPage.url} size={16} />{topPage.url}</> : "—"}
+            </p>
             {topPage && <p className="text-[11px] text-muted-foreground mt-2">{topPage.impressions.toLocaleString()} impressions &middot; {topPage.uniqueVisitors} visitors</p>}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
 
-      {/* ── World Map ── */}
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-0 pt-4 px-5">
+        <div className="px-5 pt-4 pb-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-sm font-semibold">Geographic Distribution</CardTitle>
+              <span className="text-sm font-semibold">Geographic Distribution</span>
             </div>
             {data.countryStats?.length > 0 && (
               <Badge variant="outline" className="text-[10px] font-medium">
@@ -966,11 +927,11 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
               </Badge>
             )}
           </div>
-        </CardHeader>
-        <CardContent className="p-0 mt-2">
+        </div>
+        <div className="p-0 mt-2">
           <WorldMap countryStats={data.countryStats ?? []} isDark={isDark} />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* ── Daily Trend + Devices ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1133,7 +1094,7 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
-                          <span className="truncate text-sm font-mono">{ps.url}</span>
+                          <span className="truncate text-sm font-mono flex items-center gap-1.5"><Favicon url={ps.url} size={14} />{ps.url}</span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0 text-xs">
                           <span className="text-muted-foreground">{ps.uniqueVisitors} <span className="hidden sm:inline">visitors</span></span>

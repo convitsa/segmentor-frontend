@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { posthog } from "@/lib/posthog";
 import { useProject } from "@/lib/project-context";
 import { useConfirm } from "@/components/confirm-dialog";
+import { Favicon } from "@/components/favicon";
 import type { ProjectDTO, ElementConfigDTO, AudienceDTO } from "@/lib/types/dto";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -281,7 +282,10 @@ function ProjectContent() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">{project.name}</h1>
-              <p className="text-sm text-muted-foreground">{project.siteUrl}</p>
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                <Favicon url={project.siteUrl} size={14} />
+                {project.siteUrl}
+              </p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" asChild>

@@ -57,18 +57,20 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       <AppSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       <div
         className={cn(
-          "min-h-svh transition-[margin-left] duration-200 ease-in-out flex flex-col",
+          "min-h-svh transition-[margin-left] duration-200 ease-in-out flex flex-col py-2 pr-2",
           collapsed ? "ml-[calc(60px+1rem)]" : "ml-[18rem]"
         )}
       >
-        <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 px-6">
-          <span className="text-sm font-medium">
-            {SECTION_TITLES[section] || "Overview"}
-          </span>
-        </header>
-        <main className="flex-1 overflow-auto p-6 pt-0">
-          {children}
-        </main>
+        <div className="flex-1 flex flex-col rounded-xl border bg-background shadow-sm overflow-hidden">
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 px-6 border-b bg-background">
+            <span className="text-lg font-semibold">
+              {SECTION_TITLES[section] || "Overview"}
+            </span>
+          </header>
+          <main className="flex-1 overflow-auto p-6">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
