@@ -24,8 +24,9 @@ export function useSSE(
 
   useEffect(() => {
     if (!projectId) return;
-    const token = getToken();
-    if (!token) return;
+    const maybeToken = getToken();
+    if (!maybeToken) return;
+    const token: string = maybeToken;
 
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout>;
