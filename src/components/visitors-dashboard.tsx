@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
-import { useSSE } from "@/lib/use-sse";
+import { useSocket } from "@/lib/use-socket";
 import type {
   VisitorDTO,
   SessionDTO,
@@ -287,16 +287,73 @@ function VisitorsList({
 
   useEffect(() => { load(); }, [load]);
 
-  useSSE(projectId, useCallback((event) => {
+  const debouncedLoadRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefetch = useCallback(() => {
+    if (debouncedLoadRef.current) clearTimeout(debouncedLoadRef.current);
+    debouncedLoadRef.current = setTimeout(() => {
+      debouncedLoadRef.current = null;
+      load();
+    }, 1500);
+  }, [load]);
+  useEffect(
+    () => () => {
+      if (debouncedLoadRef.current) clearTimeout(debouncedLoadRef.current);
+    },
+    []
+  );
+
+  useSocket(projectId, useCallback((event) => {
+    if (event.type === "visitor_update" || event.type.startsWith("live:") || event.type === "purchase") {
+      scheduleRefetch();
+    }
     if (event.type === "visitor_update") {
-      const d = event.data as { visitorId: string; timestamp: string; pageviews?: number; events?: number };
-      setVisitors((prev) =>
-        prev.map((v) =>
-          v.visitorId === d.visitorId
-            ? { ...v, lastSeenAt: d.timestamp, totalPageviews: v.totalPageviews + (d.pageviews || 0), totalEvents: v.totalEvents + (d.events || 0) }
-            : v
-        )
-      );
+      const d = event.data as {
+        visitorId: string;
+        timestamp: string;
+        pageviews?: number;
+        events?: number;
+        email?: string | null;
+        country?: string | null;
+        city?: string | null;
+        device?: string | null;
+      };
+      if (!d.visitorId || !d.timestamp) return;
+      setVisitors((prev) => {
+        const existing = prev.find((v) => v.visitorId === d.visitorId);
+        if (existing) {
+          return prev.map((v) =>
+            v.visitorId === d.visitorId
+              ? {
+                  ...v,
+                  lastSeenAt: d.timestamp,
+                  totalPageviews: v.totalPageviews + (d.pageviews || 0),
+                  totalEvents: v.totalEvents + (d.events || 0),
+                  ...(d.email && { email: d.email }),
+                  ...(d.country && { country: d.country }),
+                  ...(d.city && { city: d.city }),
+                  ...(d.device && { device: d.device }),
+                }
+              : v
+          );
+        }
+        const minimal: VisitorDTO = {
+          id: `live-${d.visitorId}`,
+          projectId,
+          visitorId: d.visitorId,
+          totalSessions: 1,
+          totalPageviews: d.pageviews || 1,
+          totalEvents: d.events || 0,
+          totalRevenue: 0,
+          tags: [],
+          firstSeenAt: d.timestamp,
+          lastSeenAt: d.timestamp,
+          ...(d.email && { email: d.email }),
+          ...(d.country && { country: d.country }),
+          ...(d.city && { city: d.city }),
+          ...(d.device && { device: d.device }),
+        };
+        return [minimal, ...prev];
+      });
     } else if (event.type === "purchase") {
       const d = event.data as { visitorId: string; amount?: number };
       if (d.visitorId && d.amount) {
@@ -308,8 +365,33 @@ function VisitorsList({
           )
         );
       }
+    } else if (event.type.startsWith("live:")) {
+      const d = event.data as { visitorId: string; timestamp?: string };
+      if (d.visitorId && d.timestamp) {
+        setVisitors((prev) => {
+          const existing = prev.find((v) => v.visitorId === d.visitorId);
+          if (existing) {
+            return prev.map((v) =>
+              v.visitorId === d.visitorId ? { ...v, lastSeenAt: d.timestamp! } : v
+            );
+          }
+          const minimal: VisitorDTO = {
+            id: `live-${d.visitorId}`,
+            projectId,
+            visitorId: d.visitorId,
+            totalSessions: 1,
+            totalPageviews: 0,
+            totalEvents: 1,
+            totalRevenue: 0,
+            tags: [],
+            firstSeenAt: d.timestamp!,
+            lastSeenAt: d.timestamp!,
+          };
+          return [minimal, ...prev];
+        });
+      }
     }
-  }, []));
+  }, [projectId, scheduleRefetch]));
 
   const liveCount = visitors.filter((v) => {
     return Date.now() - new Date(v.lastSeenAt).getTime() < 5 * 60 * 1000;
