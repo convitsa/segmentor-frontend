@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { useSocket } from "@/lib/use-socket";
 import { Favicon } from "@/components/favicon";
+import { SegiIcon } from "@/components/segi-icon";
+import { SegiChatPanel } from "@/components/segi-chat-panel";
 import type {
   VisitorDTO,
   SessionDTO,
@@ -37,8 +39,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
-  Clock,
   DollarSign,
   Eye,
   Globe,
@@ -54,12 +54,9 @@ import {
   FileText,
   Zap,
   ShoppingCart,
-  Activity,
-  MapPin,
-  Copy,
   Filter,
-  ArrowUpDown,
   RotateCcw,
+  X,
 } from "lucide-react";
 
 /* ─── Friendly Name Generator ─── */
@@ -205,6 +202,9 @@ function browserIcon(browser?: string | null) {
 export function VisitorsDashboard({ projectId }: Props) {
   const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [segiOpen, setSegiOpen] = useState(false);
+  const [segiFilters, setSegiFilters] = useState<Record<string, string>>({});
+  const [segiVisitorIds, setSegiVisitorIds] = useState<string[]>([]);
 
   function openVisitor(vid: string) {
     setSelectedVisitorId(vid);
@@ -216,9 +216,55 @@ export function VisitorsDashboard({ projectId }: Props) {
     setTimeout(() => setSelectedVisitorId(null), 300);
   }
 
+  const handleSegiApplyFilters = useCallback((filters: Record<string, string>, visitorIds: string[]) => {
+    setSegiFilters(filters);
+    setSegiVisitorIds(visitorIds);
+  }, []);
+
+  const clearSegiFilters = useCallback(() => {
+    setSegiFilters({});
+    setSegiVisitorIds([]);
+  }, []);
+
   return (
-    <>
-      <VisitorsList projectId={projectId} onSelect={openVisitor} />
+    <div className="-m-6 flex" style={{ height: "calc(100vh - 1.25rem)" }}>
+      {/* Visitors column */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex h-14 shrink-0 items-center px-6 border-b bg-background">
+          <span className="text-lg font-semibold">Visitors</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <VisitorsList
+            projectId={projectId}
+            onSelect={openVisitor}
+            segiOpen={segiOpen}
+            onToggleSegi={() => setSegiOpen(!segiOpen)}
+            segiFilters={segiFilters}
+            segiVisitorIds={segiVisitorIds}
+            onClearSegiFilters={clearSegiFilters}
+          />
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {segiOpen && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 420, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+            className="shrink-0 overflow-hidden border-l"
+          >
+            <SegiChatPanel
+              projectId={projectId}
+              onApplyFilters={handleSegiApplyFilters}
+              onClose={() => setSegiOpen(false)}
+              onNewChat={clearSegiFilters}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Sheet open={sheetOpen} onOpenChange={(open) => { if (!open) closeVisitor(); }}>
         <SheetContent
           side="right"
@@ -238,7 +284,7 @@ export function VisitorsDashboard({ projectId }: Props) {
           )}
         </SheetContent>
       </Sheet>
-    </>
+    </div>
   );
 }
 
@@ -249,9 +295,19 @@ export function VisitorsDashboard({ projectId }: Props) {
 function VisitorsList({
   projectId,
   onSelect,
+  segiOpen,
+  onToggleSegi,
+  segiFilters,
+  segiVisitorIds,
+  onClearSegiFilters,
 }: {
   projectId: string;
   onSelect: (visitorId: string) => void;
+  segiOpen: boolean;
+  onToggleSegi: () => void;
+  segiFilters: Record<string, string>;
+  segiVisitorIds: string[];
+  onClearSegiFilters: () => void;
 }) {
   const [visitors, setVisitors] = useState<VisitorDTO[]>([]);
   const [pagination, setPagination] = useState<PaginationDTO | null>(null);
@@ -277,6 +333,13 @@ function VisitorsList({
   const [filterTag, setFilterTag] = useState("all");
   const [filterSeenAfter, setFilterSeenAfter] = useState("");
   const [filterSeenBefore, setFilterSeenBefore] = useState("");
+
+  const [aiVisitorIds, setAiVisitorIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setAiVisitorIds(segiVisitorIds);
+    setPage(1);
+  }, [segiVisitorIds]);
 
   type FilterOptions = {
     countries: string[]; languages: string[]; browsers: string[]; os: string[];
@@ -306,8 +369,36 @@ function VisitorsList({
     setFilterUtmSource("all"); setFilterUtmMedium("all"); setFilterUtmCampaign("all");
     setFilterReferrer("all"); setFilterTag("all");
     setFilterSeenAfter(""); setFilterSeenBefore("");
+    setAiVisitorIds([]);
+    onClearSegiFilters();
     setPage(1);
   }, []);
+
+  const applyAiFilters = useCallback((filters: Record<string, string>) => {
+    setFilterDevice(filters.device || "all");
+    setFilterBrowser(filters.browser || "all");
+    setFilterOs(filters.os || "all");
+    setFilterIdentified(filters.identified || "all");
+    setFilterRevenue(filters.hasRevenue === "true" ? "paid" : "all");
+    setFilterLive(filters.live === "true" ? "live" : "all");
+    setFilterCountry(filters.country || "all");
+    setFilterLanguage(filters.language || "all");
+    setFilterUtmSource(filters.utmSource || "all");
+    setFilterUtmMedium(filters.utmMedium || "all");
+    setFilterUtmCampaign(filters.utmCampaign || "all");
+    setFilterReferrer(filters.referrer || "all");
+    setFilterTag(filters.tag || "all");
+    setFilterSeenAfter(filters.seenAfter || "");
+    setFilterSeenBefore(filters.seenBefore || "");
+    if (filters.search) setSearch(filters.search);
+    if (filters.sortBy) setSortBy(filters.sortBy);
+    if (filters.sortOrder) setSortOrder(filters.sortOrder as "asc" | "desc");
+    setPage(1);
+  }, []);
+
+  useEffect(() => {
+    applyAiFilters(segiFilters);
+  }, [segiFilters, applyAiFilters]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -333,6 +424,7 @@ function VisitorsList({
       if (filterTag !== "all") params.set("tag", filterTag);
       if (filterSeenAfter) params.set("seenAfter", filterSeenAfter);
       if (filterSeenBefore) params.set("seenBefore", filterSeenBefore);
+      if (aiVisitorIds.length) params.set("visitorIds", aiVisitorIds.join(","));
 
       const res = await api.get<{
         visitors: VisitorDTO[];
@@ -347,7 +439,7 @@ function VisitorsList({
     } finally {
       setLoading(false);
     }
-  }, [projectId, page, sortBy, sortOrder, search, filterDevice, filterBrowser, filterOs, filterIdentified, filterRevenue, filterLive, filterCountry, filterLanguage, filterUtmSource, filterUtmMedium, filterUtmCampaign, filterReferrer, filterTag, filterSeenAfter, filterSeenBefore]);
+  }, [projectId, page, sortBy, sortOrder, search, filterDevice, filterBrowser, filterOs, filterIdentified, filterRevenue, filterLive, filterCountry, filterLanguage, filterUtmSource, filterUtmMedium, filterUtmCampaign, filterReferrer, filterTag, filterSeenAfter, filterSeenBefore, aiVisitorIds]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -427,6 +519,16 @@ function VisitorsList({
             v.visitorId === d.visitorId
               ? { ...v, totalRevenue: v.totalRevenue + d.amount! }
               : v
+          )
+        );
+      }
+    } else if (event.type === "visitor_offline") {
+      const d = event.data as { visitorId: string };
+      if (d.visitorId) {
+        const pastTime = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+        setVisitors((prev) =>
+          prev.map((v) =>
+            v.visitorId === d.visitorId ? { ...v, lastSeenAt: pastTime } : v
           )
         );
       }
@@ -611,10 +713,22 @@ function VisitorsList({
         <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={load}>
           <RefreshCw className="h-4 w-4" />
         </Button>
+
+        <button
+          onClick={onToggleSegi}
+          className={`flex items-center gap-2 h-9 px-4 rounded-full text-sm font-medium text-white transition-all shrink-0 ${
+            segiOpen
+              ? "bg-gradient-to-r from-violet-600 to-purple-500 ring-2 ring-violet-300 dark:ring-violet-700"
+              : "bg-gradient-to-r from-violet-500 to-purple-400 hover:from-violet-600 hover:to-purple-500"
+          }`}
+        >
+          <SegiIcon size={16} variant="white" />
+          <span>{segiOpen ? "Close Segi" : "Ask Segi"}</span>
+        </button>
       </div>
 
       {/* Visitor Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${segiOpen ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="shadow-none py-0 gap-0">
@@ -909,6 +1023,11 @@ function VisitorDetailPanel({
         timestamp: ts,
         data: { elementId: d.elementId, variantId: d.variantId, ruleId: d.ruleId, url: d.url },
       });
+    } else if (event.type === "visitor_offline") {
+      if (d.visitorId === visitorId) {
+        const pastTime = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+        setVisitor((prev) => prev ? { ...prev, lastSeenAt: pastTime } : prev);
+      }
     }
   }, [visitorId]));
 

@@ -62,12 +62,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex-1 flex flex-col rounded-xl border bg-background shadow-sm overflow-hidden">
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 px-6 border-b bg-background">
-            <span className="text-lg font-semibold">
-              {SECTION_TITLES[section] || "Overview"}
-            </span>
-          </header>
-          <main className="flex-1 overflow-auto p-6">
+          {section !== "visitors" && (
+            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 px-6 border-b bg-background">
+              <span className="text-lg font-semibold">
+                {SECTION_TITLES[section] || "Overview"}
+              </span>
+            </header>
+          )}
+          <main className={cn("flex-1 p-6", section === "visitors" ? "overflow-hidden" : "overflow-auto")}>
             {children}
           </main>
         </div>
