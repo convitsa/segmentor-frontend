@@ -71,6 +71,7 @@ export interface ProjectConfigDTO {
   id: string;
   siteUrl: string;
   elements: ElementConfigDTO[];
+  recordingEnabled?: boolean;
 }
 
 export interface AudienceDTO {
@@ -92,9 +93,30 @@ export interface ProjectDTO {
   name: string;
   siteUrl: string;
   publicKey: string;
+  recordingEnabled: boolean;
   userId: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SessionRecordingDTO {
+  id: string;
+  projectId: string;
+  visitorId: string;
+  sessionId: string;
+  status: string;
+  eventsCount: number;
+  duration: number;
+  pagesVisited: string[];
+  startedAt: string;
+  endedAt?: string | null;
+  summary?: string | null;
+  journeySteps?: unknown[];
+  clickPoints?: unknown[];
+  frictionPoints?: unknown[];
+  conversionEvents?: unknown[];
+  sentiment?: string | null;
+  analyzedAt?: string | null;
 }
 
 export interface AuthResponse {

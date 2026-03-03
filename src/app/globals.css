@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "rrweb-player/dist/style.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -115,6 +116,22 @@
   --sidebar-accent-foreground: #CDC4B6;
   --sidebar-border: #424242;
   --sidebar-ring: #FA783E;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.btn-gradient-animate {
+  animation: gradient-shift 3s ease infinite;
+  background-size: 200% 200%;
 }
 
 @layer base {

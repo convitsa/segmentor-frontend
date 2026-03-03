@@ -7,9 +7,10 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { posthog } from "@/lib/posthog";
 import { useProject } from "@/lib/project-context";
+import { useAuth } from "@/lib/auth-context";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Favicon } from "@/components/favicon";
-import type { ProjectDTO, ElementConfigDTO, AudienceDTO } from "@/lib/types/dto";
+import type { ProjectDTO, ElementConfigDTO, AudienceDTO, VisitorDTO } from "@/lib/types/dto";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,30 +22,36 @@ import {
 } from "@/components/ui/card";
 import {
   Copy,
-  ExternalLink,
   Pencil,
   Trash2,
   Plus,
   Users,
   Sparkles,
-  BarChart3,
-  Eye,
-  MousePointerClick,
   Globe,
   CheckCircle2,
   Circle,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
   Settings,
   Loader2,
-  TrendingUp,
   Boxes,
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { ElementEditor } from "@/components/element-editor";
 import { AudienceForm } from "@/components/audience-form";
 import { AnalyticsDashboard } from "@/components/analytics-dashboard";
-import { VisitorsDashboard } from "@/components/visitors-dashboard";
+import { VisitorsDashboard, VisitorDetailPanel } from "@/components/visitors-dashboard";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { IntegrationsSettings } from "@/components/integrations-settings";
+import { RecordingsDashboard } from "@/components/recordings-dashboard";
+import { SegiChatView } from "@/components/segi-chat-view";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -53,6 +60,15 @@ interface AnalyticsSummary {
   totalImpressions: number;
   uniqueVisitors: number;
   dailyStats: { date: string; impressions: number; visitors: number }[];
+}
+
+interface OverviewData {
+  totalVisitors: number;
+  previousPeriod: { totalVisitors: number; totalSessions: number };
+  totalPageviews: number;
+  totalRevenue: number;
+  totalSessions: number;
+  dailyStats: { date: string; visitors: number; sessions: number; pageviews: number }[];
 }
 
 const CONDITION_TYPE_LABELS: Record<string, string> = {
@@ -67,14 +83,100 @@ const CONDITION_TYPE_LABELS: Record<string, string> = {
   time: "Time",
 };
 
+function countryCodeToFlag(code: string | null | undefined): string {
+  if (!code || code.length !== 2) return "";
+  const codePoints = code
+    .toUpperCase()
+    .split("")
+    .map((c) => 0x1f1e6 + c.charCodeAt(0) - 65);
+  return String.fromCodePoint(...codePoints);
+}
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return n.toLocaleString();
+}
+
+function formatCurrency(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return `$${n.toLocaleString()}`;
+}
+
+function percentChange(current: number, previous: number): { value: number; positive: boolean } {
+  if (previous === 0) return { value: current > 0 ? 100 : 0, positive: current > 0 };
+  const change = Math.round(((current - previous) / previous) * 100);
+  return { value: Math.abs(change), positive: change >= 0 };
+}
+
+function timeAgo(date: string): string {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+const AVATAR_STYLES = ["adventurer", "adventurer-neutral", "avataaars", "big-ears", "big-smile", "lorelei", "notionists", "open-peeps", "personas", "thumbs"] as const;
+function hashSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function visitorAvatarUrl(v: { email?: string | null; visitorId: string }, size = 80): string {
+  const seed = v.email || v.visitorId;
+  const style = AVATAR_STYLES[hashSeed(seed) % AVATAR_STYLES.length];
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=${size}&radius=50&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+}
+
+function StatCard({ value, label, change }: {
+  value: string;
+  label: string;
+  change: { value: number; positive: boolean } | null;
+}) {
+  const isPositive = change?.positive !== false;
+
+  return (
+    <div className="rounded-2xl border border-border bg-transparent p-5 flex flex-col justify-between min-h-[150px]">
+      <div>
+        <p className="text-3xl font-bold tracking-tight dark:text-white">{value}</p>
+        <p className="text-sm text-muted-foreground mt-1.5">{label}</p>
+      </div>
+      <div className="flex items-center gap-2.5 mt-auto pt-4">
+        <span
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] text-xs font-semibold"
+          style={{
+            backgroundColor: isPositive ? "rgba(43, 153, 105, 0.1)" : "rgba(255, 111, 0, 0.1)",
+            color: isPositive ? "#14F190" : "#FF6F00",
+          }}
+        >
+          {isPositive ? (
+            <ArrowUp className="h-3.5 w-3.5" strokeWidth={2.5} />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5" strokeWidth={2.5} />
+          )}
+          {change ? `${change.value}%` : "—"}
+        </span>
+        <span className="text-xs text-muted-foreground">vs last week</span>
+      </div>
+    </div>
+  );
+}
+
 function ProjectContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const confirm = useConfirm();
   const { setCurrentProjectId } = useProject();
+  const { user } = useAuth();
   const projectId = params.id as string;
   const section = searchParams.get("section") || "dashboard";
+  const chatConversationId = searchParams.get("conversationId") || null;
 
   const [project, setProject] = useState<ProjectDTO | null>(null);
   const [elements, setElements] = useState<ElementConfigDTO[]>([]);
@@ -83,9 +185,24 @@ function ProjectContent() {
   const [showAudienceForm, setShowAudienceForm] = useState(false);
   const [editingAudience, setEditingAudience] = useState<AudienceDTO | null>(null);
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
+  const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
+  const [latestVisitors, setLatestVisitors] = useState<VisitorDTO[]>([]);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<"success" | "fail" | null>(null);
   const [scriptVerified, setScriptVerified] = useState(false);
+  const [chatTitle, setChatTitle] = useState<string>("");
+  const [visitorSheetOpen, setVisitorSheetOpen] = useState(false);
+  const [selectedVisitorId, setSelectedVisitorId] = useState<string | null>(null);
+
+  function openVisitorDetail(visitorId: string) {
+    setSelectedVisitorId(visitorId);
+    setVisitorSheetOpen(true);
+  }
+
+  function closeVisitorDetail() {
+    setVisitorSheetOpen(false);
+    setTimeout(() => setSelectedVisitorId(null), 300);
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem(`segmentor_script_verified_${projectId}`);
@@ -131,12 +248,28 @@ function ProjectContent() {
     } catch { /* ignore */ }
   }, [projectId]);
 
+  const loadOverviewData = useCallback(async () => {
+    try {
+      const result = await api.get<OverviewData>(`/api/projects/${projectId}/analytics/overview?days=7`);
+      setOverviewData(result);
+    } catch { /* ignore */ }
+  }, [projectId]);
+
+  const loadLatestVisitors = useCallback(async () => {
+    try {
+      const result = await api.get<{ visitors: VisitorDTO[] }>(`/api/projects/${projectId}/visitors?limit=7&sortBy=lastSeenAt&sortOrder=desc`);
+      setLatestVisitors(result.visitors || []);
+    } catch { /* ignore */ }
+  }, [projectId]);
+
   useEffect(() => {
     loadProject();
     loadElements();
     loadAudiences();
     loadAnalyticsSummary();
-  }, [loadProject, loadElements, loadAudiences, loadAnalyticsSummary]);
+    loadOverviewData();
+    loadLatestVisitors();
+  }, [loadProject, loadElements, loadAudiences, loadAnalyticsSummary, loadOverviewData, loadLatestVisitors]);
 
   async function deleteProject() {
     const ok = await confirm({
@@ -234,6 +367,16 @@ function ProjectContent() {
 
   const allChecklistDone = checklist.every(c => c.done);
 
+  const chartData = useMemo(() => {
+    if (!overviewData?.dailyStats || !analyticsSummary?.dailyStats) return [];
+    const impressionMap = new Map(analyticsSummary.dailyStats.map(d => [d.date, d.impressions]));
+    return overviewData.dailyStats.map(d => ({
+      date: d.date,
+      visitors: d.visitors,
+      impressions: impressionMap.get(d.date) || 0,
+    }));
+  }, [overviewData, analyticsSummary]);
+
   function audienceRuleCount(audienceId: string): number {
     return elements.reduce((sum, el) =>
       sum + el.rules.filter(r => r.audienceId === audienceId).length, 0
@@ -274,215 +417,188 @@ function ProjectContent() {
     }
   }
 
+  const userName = user?.name || user?.email?.split("@")[0] || "there";
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  const todayVisitors = overviewData?.totalVisitors ?? 0;
+
+  const visitorsChange = overviewData
+    ? percentChange(overviewData.totalVisitors, overviewData.previousPeriod.totalVisitors)
+    : null;
+  const sessionsChange = overviewData
+    ? percentChange(overviewData.totalSessions, overviewData.previousPeriod.totalSessions)
+    : null;
+
   return (
-    <div className="space-y-6">
+    <div className={section === "chat" ? "h-full" : "space-y-6"}>
       {/* ========== DASHBOARD ========== */}
       {section === "dashboard" && (
         <>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{project.name}</h1>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <Favicon url={project.siteUrl} size={14} />
-                {project.siteUrl}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <a href={project.siteUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Visit site
-                </a>
-              </Button>
-              <Button variant="destructive" size="icon" className="h-8 w-8" onClick={deleteProject}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+          {/* Greeting Card */}
+          <div className="rounded-2xl p-6 dark:bg-[#484848] bg-muted/60">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold dark:text-white">Hey, {userName}</h1>
+                <p className="text-m  mt-1.5 text-base">
+                  It&apos;s {dateStr} and{" "}
+                  <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded-md dark:bg-[#415549] bg-black/10">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#14F190" }} />
+                    <span className="font-semibold text-sm" style={{ color: "#14F190" }}>{formatNumber(todayVisitors)}</span>
+                  </span>{" "}
+                  visitors on your website today.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("chat")}
+                className="btn-gradient-animate shrink-0 h-13 px-8 rounded-full text-[15px] font-semibold text-white flex items-center gap-2.5 transition-all cursor-pointer"
+                style={{ background: "linear-gradient(90deg, #C0CC4C 0%, #F4925A 25%, #D0B659 50%, #76CB69 75%, #C0CC4C 100%)", backgroundSize: "200% 200%" }}
+              >
+                <Sparkles className="h-4 w-4" />
+                Ask AI for more
+              </button>
             </div>
           </div>
-
-          {/* Getting Started Checklist */}
-          {!allChecklistDone && (
-            <Card className="border-primary/20">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Getting Started
-                </CardTitle>
-                <CardDescription>
-                  Complete these steps to start personalizing your Framer site
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {checklist.map(item => (
-                    <button
-                      key={item.key}
-                      onClick={() => navigate(item.section)}
-                      className="flex items-center gap-3 w-full text-left group"
-                    >
-                      {item.done ? (
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0" />
-                      )}
-                      <span className={`text-sm flex-1 ${item.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                        {item.label}
-                      </span>
-                      {!item.done && (
-                        <ArrowRight className="h-4 w-4 text-muted-foreground/0 group-hover:text-primary transition-colors" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Metrics Row */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-t-2 border-t-primary">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Impressions (7d)</p>
-                    <p className="text-2xl font-bold mt-1">{analyticsSummary ? analyticsSummary.totalImpressions.toLocaleString() : "—"}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <Eye className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-t-2 border-t-primary">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Visitors (7d)</p>
-                    <p className="text-2xl font-bold mt-1">{analyticsSummary ? analyticsSummary.uniqueVisitors.toLocaleString() : "—"}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <MousePointerClick className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-t-2 border-t-primary">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Personalizations</p>
-                    <p className="text-2xl font-bold mt-1">{elements.length}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-t-2 border-t-primary">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Rules</p>
-                    <p className="text-2xl font-bold mt-1">{totalActiveRules}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <TrendingUp className="h-5 w-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              value={analyticsSummary ? formatNumber(analyticsSummary.totalImpressions) : "—"}
+              label="Impressions"
+              change={sessionsChange}
+            />
+            <StatCard
+              value={overviewData ? formatNumber(overviewData.totalVisitors) : "—"}
+              label="Visitors"
+              change={visitorsChange}
+            />
+            <StatCard
+              value={overviewData ? formatNumber(overviewData.totalPageviews) : "—"}
+              label="Pageviews"
+              change={sessionsChange}
+            />
+            <StatCard
+              value={overviewData ? formatCurrency(overviewData.totalRevenue) : "—"}
+              label="Revenue"
+              change={visitorsChange}
+            />
           </div>
 
-          {/* Mini Traffic Trend */}
-          {analyticsSummary && analyticsSummary.dailyStats.length > 0 && (
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-1">
-                  <div>
-                    <p className="text-sm font-medium">Traffic overview</p>
-                    <p className="text-xs text-muted-foreground">Impressions &amp; visitors over the last 7 days</p>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => navigate("analytics")}>
-                    View details
-                    <ArrowRight className="ml-1 h-3 w-3" />
-                  </Button>
+          {/* Bottom Row: Latest Visitors + Traffic Overview */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Latest Visitors */}
+            <div className="rounded-2xl border border-border bg-transparent overflow-hidden ">
+              <div className="flex items-center justify-between pt-3 pb-2 w-full dark:bg-[#383838] pl-2">
+                <p className="text-sm font-semibold dark:text-white pl-1">Latest visitors</p>
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-primary" onClick={() => navigate("visitors")}>
+                  View all
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+              </div>
+              <div className="divide-y dark:divide-[#484848] divide-border/50 px-4">
+                  {latestVisitors.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">No visitors yet</p>
+                  ) : (
+                    latestVisitors.map((v) => {
+                      const displayName = v.name || v.email || v.visitorId.slice(0, 12);
+                      const flag = countryCodeToFlag(v.countryCode);
+                      const location = v.city || v.country || "";
+                      return (
+                        <div key={v.id} className="flex items-center p-4 cursor-pointer hover:bg-muted/40 transition-colors rounded-lg" onClick={() => openVisitorDetail(v.visitorId)}>
+                          <img
+                            src={visitorAvatarUrl(v, 80)}
+                            alt=""
+                            className="h-10 w-10 rounded-full shrink-0 bg-muted object-cover "
+                            loading="lazy"
+                          />
+                          <span className="text-sm font-medium truncate dark:text-white w-[120px] shrink-0 ml-4">
+                            {displayName}
+                          </span>
+                          <span className="text-sm text-muted-foreground truncate w-[120px] shrink-0 ml-4">
+                            {location} {flag}
+                          </span>
+                          <span className="text-sm text-muted-foreground shrink-0 ml-4">
+                            {v.browser || "—"}
+                          </span>
+                          <span className="text-sm text-muted-foreground shrink-0 ml-auto text-right">
+                            {timeAgo(v.lastSeenAt)}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-                <div className="h-[140px] mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={analyticsSummary.dailyStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="dashImpressions" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#171717" stopOpacity={0.2} />
-                          <stop offset="100%" stopColor="#171717" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="dashVisitors" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
-                          <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/40" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 10 }}
-                        tickFormatter={(v) => {
-                          const d = new Date(v);
-                          return `${d.getDate()}/${d.getMonth() + 1}`;
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={40} allowDecimals={false} />
-                      <ReTooltip
-                        contentStyle={{
-                          fontSize: 12,
-                          borderRadius: 8,
-                          border: "1px solid var(--border)",
-                          backgroundColor: "var(--popover)",
-                          color: "var(--popover-foreground)",
-                        }}
-                        labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                      />
-                      <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#171717" strokeWidth={2} fill="url(#dashImpressions)" dot={false} activeDot={{ r: 3, fill: "#171717" }} />
-                      <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#10b981" strokeWidth={2} fill="url(#dashVisitors)" dot={false} activeDot={{ r: 3, fill: "#10b981" }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex items-center justify-center gap-4 mt-2">
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#171717" }} />
-                    Impressions
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: "#10b981" }} />
-                    Visitors
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            </div>
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate("editor")}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Open editor
-              </Button>
-              <Button variant="outline" size="sm" onClick={copySnippet}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy script
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate("analytics")}>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                View analytics
-              </Button>
-            </CardContent>
-          </Card>
+            {/* Traffic Overview Chart */}
+            <div className="rounded-2xl border border-border bg-transparent flex flex-col overflow-hidden ">
+              <div className="flex items-center justify-between px-2 pt-2  w-full dark:bg-[#383838]">
+                <p className="text-sm font-semibold dark:text-white pt-2 pb-3 pl-1">Traffic overview</p>
+                <span className="text-xs text-muted-foreground">Last 7 days</span>
+              </div>
+              <div className="flex-1 flex flex-col">
+                {chartData.length > 0 ? (
+                  <>
+                    <div className="flex-1 min-h-[280px] pt-3">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                          <CartesianGrid stroke="var(--border)" strokeOpacity={0.3} vertical={false} />
+                          <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                            tickFormatter={(v) => `${new Date(v).getDate()}`}
+                            axisLine={false}
+                            tickLine={false}
+                            dy={8}
+                          />
+                          <YAxis hide />
+                          <ReTooltip
+                            contentStyle={{
+                              fontSize: 12,
+                              borderRadius: 8,
+                              border: "1px solid var(--border)",
+                              backgroundColor: "var(--popover)",
+                              color: "var(--popover-foreground)",
+                            }}
+                            labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                          />
+                          <Line type="natural" dataKey="impressions" name="Impressions" stroke="#3ACB68" strokeWidth={3} dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+                          <Line type="natural" dataKey="visitors" name="Visitors" stroke="#FA783E" strokeWidth={3} dot={false} activeDot={{ r: 5, strokeWidth: 0 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex items-center justify-center gap-6 py-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#3ACB68" }} />
+                        Impressions
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FA783E" }} />
+                        Visitors
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center flex-1 min-h-[280px] text-sm text-muted-foreground">
+                    No data available
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </>
+      )}
+
+      {/* ========== CHAT ========== */}
+      {section === "chat" && (
+        <SegiChatView
+          projectId={projectId}
+          conversationId={chatConversationId}
+          onConversationCreated={(id) => {
+            router.replace(`/dashboard/projects/${projectId}?section=chat&conversationId=${id}`);
+            window.dispatchEvent(new CustomEvent("segi-conversations-updated"));
+          }}
+          onTitleUpdate={setChatTitle}
+        />
       )}
 
       {/* ========== PERSONALIZATIONS ========== */}
@@ -657,6 +773,11 @@ function ProjectContent() {
         <AnalyticsDashboard projectId={projectId} elements={elements} />
       )}
 
+      {/* ========== RECORDINGS ========== */}
+      {section === "recordings" && (
+        <RecordingsDashboard projectId={projectId} />
+      )}
+
       {/* ========== INTEGRATIONS ========== */}
       {section === "integrations" && (
         <IntegrationsSettings projectId={projectId} />
@@ -787,6 +908,26 @@ function ProjectContent() {
           </Card>
         </div>
       )}
+
+      <Sheet open={visitorSheetOpen} onOpenChange={(open) => { if (!open) closeVisitorDetail(); }}>
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="w-full sm:max-w-2xl lg:max-w-4xl p-0 flex flex-col"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Visitor Details</SheetTitle>
+            <SheetDescription>Detailed visitor information and timeline</SheetDescription>
+          </SheetHeader>
+          {selectedVisitorId && (
+            <VisitorDetailPanel
+              projectId={projectId}
+              visitorId={selectedVisitorId}
+              onClose={closeVisitorDetail}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

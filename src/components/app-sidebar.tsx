@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useProject } from "@/lib/project-context"
@@ -56,7 +56,21 @@ import {
   PanelLeft,
   CreditCard,
   Plug,
+  Video,
+  MessageSquarePlus,
+  MoreHorizontal,
+  Trash2,
+  Loader2,
 } from "lucide-react"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+
+interface Conversation {
+  id: string
+  title: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 const NAV_GROUPS = [
   {
@@ -70,23 +84,10 @@ const NAV_GROUPS = [
     items: [
       { key: "analytics", label: "Analytics", icon: BarChart3 },
       { key: "visitors", label: "Visitors", icon: Globe },
-    ],
-  },
-  {
-    label: "Personalization",
-    items: [
-      { key: "personalizations", label: "Personalizations", icon: Sparkles },
-      { key: "audiences", label: "Audiences", icon: Users },
       { key: "editor", label: "Editor", icon: Pencil },
     ],
   },
-  {
-    label: "Settings",
-    items: [
-      { key: "integrations", label: "Integrations", icon: Plug },
-      { key: "setup", label: "Setup", icon: Settings },
-    ],
-  },
+  
 ]
 
 const createSchema = z.object({
@@ -111,6 +112,11 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const [createOpen, setCreateOpen] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [activeSection, setActiveSection] = useState("dashboard")
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [loadingConversations, setLoadingConversations] = useState(false)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null)
+  const [visibleChatCount, setVisibleChatCount] = useState(15)
 
   useEffect(() => {
     if (pathname === "/dashboard/settings") {
@@ -120,9 +126,42 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     } else if (pathname.includes("/editor")) {
       setActiveSection("editor")
     } else {
-      setActiveSection(searchParams.get("section") || "dashboard")
+      const section = searchParams.get("section") || "dashboard"
+      setActiveSection(section)
+      if (section === "chat") {
+        setActiveConversationId(searchParams.get("conversationId") || null)
+      } else {
+        setActiveConversationId(null)
+      }
     }
   }, [pathname, searchParams])
+
+  const loadConversations = useCallback(async () => {
+    if (!currentProjectId) return
+    setLoadingConversations(true)
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("segmentor_token") : null
+      const res = await fetch(`${API_URL}/api/projects/${currentProjectId}/segi/conversations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setConversations(data.conversations || [])
+      }
+    } catch { /* ignore */ } finally {
+      setLoadingConversations(false)
+    }
+  }, [currentProjectId])
+
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
+
+  useEffect(() => {
+    const handler = () => loadConversations()
+    window.addEventListener("segi-conversations-updated", handler)
+    return () => window.removeEventListener("segi-conversations-updated", handler)
+  }, [loadConversations])
 
   const form = useForm<CreateFormData>({
     resolver: zodResolver(createSchema),
@@ -151,12 +190,47 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       return
     }
     setActiveSection(section)
+    setActiveConversationId(null)
     router.push(`/dashboard/projects/${currentProjectId}?section=${section}`)
+  }
+
+  function navigateToChat(conversationId?: string) {
+    if (!currentProjectId) return
+    setActiveSection("chat")
+    setActiveConversationId(conversationId || null)
+    const url = conversationId
+      ? `/dashboard/projects/${currentProjectId}?section=chat&conversationId=${conversationId}`
+      : `/dashboard/projects/${currentProjectId}?section=chat`
+    router.push(url)
+  }
+
+  async function deleteConversation(e: React.MouseEvent, convId: string) {
+    e.stopPropagation()
+    setDeletingConversationId(convId)
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("segmentor_token") : null
+      const res = await fetch(`${API_URL}/api/projects/${currentProjectId}/segi/conversations/${convId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        setConversations(prev => prev.filter(c => c.id !== convId))
+        if (activeConversationId === convId) {
+          navigateToSection("dashboard")
+        }
+        toast.success("Conversation deleted")
+      }
+    } catch {
+      toast.error("Failed to delete conversation")
+    } finally {
+      setDeletingConversationId(null)
+    }
   }
 
   function switchProject(projectId: string) {
     posthog.capture("project_switched", { project_id: projectId })
     setCurrentProjectId(projectId)
+    setVisibleChatCount(15)
     router.push(`/dashboard/projects/${projectId}?section=${activeSection}`)
   }
 
@@ -182,12 +256,12 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <>
       <aside
         className={cn(
-          "fixed top-0 left-0 bottom-0 z-30 flex flex-col bg-white dark:bg-card text-sidebar-foreground transition-[width] duration-200 ease-in-out m-2 rounded-xl border shadow-sm overflow-hidden",
+          "fixed top-0 left-0 bottom-0 z-30 flex flex-col bg-white dark:bg-[#343434] text-sidebar-foreground transition-[width] duration-200 ease-in-out m-2 rounded-xl border dark:border-[#484848] shadow-sm overflow-hidden",
           collapsed ? "w-[60px]" : "w-[calc(18rem-1rem)]"
         )}
       >
         {/* Project Switcher */}
-        <div className={cn("shrink-0 border-b flex items-center gap-1", collapsed ? "px-1.5 py-2 flex-col" : "px-3 py-2")}>
+        <div className={cn("shrink-0 border-b dark:border-[#484848] flex items-center gap-1", collapsed ? "px-1.5 py-2 flex-col" : "px-3 py-2")}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -196,26 +270,26 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   collapsed ? "justify-center" : "text-left"
                 )}
               >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted overflow-hidden">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted dark:bg-white overflow-hidden">
                   {currentProject?.siteUrl ? (
                     <Favicon url={currentProject.siteUrl} size={20} />
                   ) : (
-                    <span className="font-bold text-xs text-primary">{currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}</span>
+                    <span className="font-bold text-xs text-primary dark:text-black">{currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}</span>
                   )}
                 </div>
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate font-semibold text-[14px] leading-tight">
+                      <p className="truncate font-semibold text-[14px] leading-tight dark:text-white">
                         {currentProject?.name ?? "No project"}
                       </p>
                       {currentProject && (
-                        <p className="truncate text-[11px] text-muted-foreground leading-tight mt-0.5">
+                        <p className="truncate text-[11px] text-muted-foreground dark:text-[#C2C0B6] leading-tight mt-0.5">
                           {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
                         </p>
                       )}
                     </div>
-                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#C2C0B6]" />
                   </>
                 )}
               </button>
@@ -253,18 +327,18 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={onToggle}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground dark:text-[#C2C0B6]" onClick={onToggle}>
             <PanelLeft className="size-4" />
           </Button>
         </div>
 
-        <ScrollArea className="flex-1">
-          <div className={cn("flex flex-col gap-0.5 pt-3", collapsed ? "px-1.5" : "px-3")}>
-            {/* Nav Groups */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {/* Nav Groups (fixed) */}
+          <div className={cn("flex flex-col gap-0.5 pt-3 shrink-0", collapsed ? "px-1.5" : "px-3")}>
             {NAV_GROUPS.map((group, gi) => (
               <div key={gi} className={cn("flex flex-col gap-0.5", gi > 0 && "mt-4")}>
                 {group.label && !collapsed && (
-                  <p className="px-2 pb-1 text-[11px] font-medium text-sidebar-foreground/50 tracking-wide">
+                  <p className="px-2 pb-1 text-[11px] font-medium text-sidebar-foreground/50 dark:text-[#999999]/60 tracking-wide">
                     {group.label}
                   </p>
                 )}
@@ -281,13 +355,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       className={cn(
                         "relative flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] transition-colors w-full",
                         active
-                          ? "bg-primary/5 dark:bg-primary/10 text-foreground font-medium"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          ? "bg-primary/10 dark:bg-sidebar-primary text-foreground dark:text-black font-medium"
+                          : "text-sidebar-foreground dark:text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                         collapsed ? "justify-center px-0" : "text-left px-2"
                       )}
                       title={collapsed ? item.label : undefined}
                     >
-                      <item.icon className={cn("size-[17px] shrink-0", active && "text-foreground")} />
+                      <item.icon className={cn("size-[17px] shrink-0", active && "text-foreground dark:text-black")} />
                       {!collapsed && <span>{item.label}</span>}
                     </button>
                   )
@@ -295,15 +369,112 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               </div>
             ))}
           </div>
-        </ScrollArea>
+
+          {/* Reports Section (scrollable) */}
+          <div className={cn("mt-4 flex flex-col gap-0.5 shrink-0", collapsed ? "px-1.5" : "px-3")}>
+            {!collapsed && (
+              <p className="px-2 pb-1 text-[11px] font-medium text-sidebar-foreground/50 dark:text-[#999999]/60 tracking-wide">
+                Reports
+              </p>
+            )}
+            {collapsed && <Separator className="my-1" />}
+
+            {/* New Chat Button */}
+            <button
+              onClick={() => navigateToChat()}
+              className={cn(
+                "relative flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] transition-colors w-full cursor-pointer",
+                "text-sidebar-foreground dark:text-sidebar-foreground hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] hover:text-sidebar-accent-foreground",
+                collapsed ? "justify-center px-0" : "text-left px-2"
+              )}
+              title={collapsed ? "New chat" : undefined}
+            >
+              <div className="flex size-[18px] shrink-0 items-center justify-center rounded-full dark:bg-white/10">
+                <Plus className="size-3.5" />
+              </div>
+              {!collapsed && <span>New chat</span>}
+            </button>
+          </div>
+
+          {/* Conversation List (scrollable) */}
+          {!collapsed && (
+            <ScrollArea className={cn("flex-1 min-h-0", collapsed ? "px-1.5" : "px-3")}>
+              <div className="flex flex-col gap-0.5 mt-0.5">
+                {loadingConversations && conversations.length === 0 && (
+                  <div className="flex items-center gap-2 px-2 py-2">
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    <span className="text-[12px] text-muted-foreground">Loading...</span>
+                  </div>
+                )}
+                {conversations.slice(0, visibleChatCount).map((conv) => {
+                  const isActive = activeSection === "chat" && activeConversationId === conv.id
+                  const title = conv.title || "Untitled"
+                  const displayTitle = title.length > 30 ? title.slice(0, 25) + "..." : title
+                  return (
+                    <div
+                      key={conv.id}
+                      className={cn(
+                        "group flex items-center gap-2 rounded-lg py-[6px] text-[13px] transition-colors cursor-pointer",
+                        isActive
+                          ? "bg-primary/10 dark:bg-sidebar-primary text-foreground dark:text-black font-medium"
+                          : "text-sidebar-foreground dark:text-sidebar-foreground hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] hover:text-sidebar-accent-foreground",
+                        "pl-2 pr-1"
+                      )}
+                      onClick={() => navigateToChat(conv.id)}
+                      title={title}
+                    >
+                      <span className="flex-1 min-w-0 truncate">
+                        {displayTitle}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className={cn(
+                              "shrink-0 h-6 w-6 rounded flex items-center justify-center hover:bg-muted transition-colors",
+                              isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                            )}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {deletingConversationId === conv.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="right" align="start" sideOffset={4}>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => deleteConversation(e, conv.id)}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )
+                })}
+                {conversations.length > visibleChatCount && (
+                  <button
+                    onClick={() => setVisibleChatCount(prev => prev + 10)}
+                    className="px-2 py-1.5 text-[12px] text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors text-left"
+                  >
+                    Load more...
+                  </button>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
 
         {/* Footer */}
-        <div className={cn("border-t py-2 flex flex-col gap-1", collapsed ? "px-1.5" : "px-3")}>
+        <div className={cn("border-t dark:border-[#484848] py-2 flex flex-col gap-1", collapsed ? "px-1.5" : "px-3")}>
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full",
+              "flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] text-sidebar-foreground/70 dark:text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full",
               collapsed ? "justify-center px-0" : "text-left px-2"
             )}
             title={collapsed ? "Toggle theme" : undefined}
@@ -322,16 +493,16 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   collapsed ? "justify-center" : "text-left"
                 )}
               >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[11px] font-semibold">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-[#CDC4B6] dark:text-black text-[11px] font-semibold">
                   {initials}
                 </div>
                 {!collapsed && (
                   <>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-[13px] font-medium leading-tight">{userName}</p>
-                      <p className="truncate text-[11px] text-muted-foreground leading-tight">{email}</p>
+                      <p className="truncate text-[13px] font-medium leading-tight dark:text-white">{userName}</p>
+                      <p className="truncate text-[11px] text-muted-foreground dark:text-[#999999] leading-tight">{email}</p>
                     </div>
-                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#999999]" />
                   </>
                 )}
               </button>
@@ -354,6 +525,19 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               <DropdownMenuItem onClick={() => router.push("/dashboard/billing")}>
                 <CreditCard className="mr-2 h-4 w-4" />
                 Billing
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigateToSection("recordings")}>
+                <Video className="mr-2 h-4 w-4" />
+                Recordings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigateToSection("integrations")}>
+                <Plug className="mr-2 h-4 w-4" />
+                Integrations
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigateToSection("setup")}>
+                <Settings className="mr-2 h-4 w-4" />
+                Setup
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>

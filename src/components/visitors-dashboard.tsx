@@ -895,7 +895,7 @@ function VisitorRow({ visitor: v, onClick }: { visitor: VisitorDTO; onClick: () 
    Visitor Detail Panel (Bottom Sheet)
    ═══════════════════════════════════════════ */
 
-function VisitorDetailPanel({
+export function VisitorDetailPanel({
   projectId,
   visitorId,
   onClose,
