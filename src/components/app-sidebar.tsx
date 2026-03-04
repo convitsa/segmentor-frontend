@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useProject } from "@/lib/project-context"
-import { useTheme } from "next-themes"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -46,8 +45,6 @@ import {
   BarChart3,
   Settings,
   Pencil,
-  Moon,
-  Sun,
   LogOut,
   ChevronsUpDown,
   Plus,
@@ -106,7 +103,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const router = useRouter()
   const { user, logout } = useAuth()
   const { projects, currentProject, currentProjectId, setCurrentProjectId, reload } = useProject()
-  const { theme, setTheme } = useTheme()
 
   const searchParams = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
@@ -198,6 +194,15 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     if (!currentProjectId) return
     setActiveSection("chat")
     setActiveConversationId(conversationId || null)
+
+    if (!conversationId) {
+      const isAlreadyNewChat = activeSection === "chat" && !activeConversationId
+      if (isAlreadyNewChat) {
+        window.dispatchEvent(new CustomEvent("segi-new-chat"))
+        return
+      }
+    }
+
     const url = conversationId
       ? `/dashboard/projects/${currentProjectId}?section=chat&conversationId=${conversationId}`
       : `/dashboard/projects/${currentProjectId}?section=chat`
@@ -470,20 +475,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
         {/* Footer */}
         <div className={cn("border-t dark:border-[#484848] py-2 flex flex-col gap-1", collapsed ? "px-1.5" : "px-3")}>
-          {/* Theme toggle */}
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className={cn(
-              "flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] text-sidebar-foreground/70 dark:text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full",
-              collapsed ? "justify-center px-0" : "text-left px-2"
-            )}
-            title={collapsed ? "Toggle theme" : undefined}
-          >
-            <Sun className="size-[17px] shrink-0 dark:hidden" />
-            <Moon className="size-[17px] shrink-0 hidden dark:block" />
-            {!collapsed && <span>Theme</span>}
-          </button>
-
           {/* User */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

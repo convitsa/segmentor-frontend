@@ -22,7 +22,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Moon, Sun, Quote } from "lucide-react";
+import { Quote } from "lucide-react";
 
 const TESTIMONIALS = [
   {
@@ -351,7 +351,7 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { login } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const [mode, setMode] = useState<"signin" | "signup">(
     searchParams.get("mode") === "signup" ? "signup" : "signin"
   );
@@ -389,17 +389,6 @@ function AuthPageInner() {
 
   return (
     <div className="min-h-screen flex relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 right-4 h-8 w-8 z-10"
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      >
-        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
-      </Button>
-
       <LeftBrandPanel />
 
       <div className="flex-1 flex items-center justify-center bg-background px-6 overflow-hidden">

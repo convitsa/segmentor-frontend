@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useTheme } from "next-themes";
 import { useConfirm } from "@/components/confirm-dialog";
 import { api } from "@/lib/api";
 import { posthog } from "@/lib/posthog";
@@ -24,10 +23,6 @@ import {
   Mail,
   Calendar,
   Lock,
-  Palette,
-  Monitor,
-  Sun,
-  Moon,
   Trash2,
   Shield,
   Loader2,
@@ -51,7 +46,6 @@ interface ProfileData {
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, login } = useAuth();
-  const { theme, setTheme } = useTheme();
   const confirm = useConfirm();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -215,12 +209,6 @@ export default function SettingsPage() {
       setDeleting(false);
     }
   }
-
-  const themeOptions = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor },
-  ] as const;
 
   if (loadingProfile) {
     return (
@@ -489,45 +477,6 @@ export default function SettingsPage() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* ─── Appearance ─── */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Palette className="size-5 text-primary" />
-            <CardTitle className="text-lg">Appearance</CardTitle>
-          </div>
-          <CardDescription>Choose how Segmentor looks for you</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            {themeOptions.map((opt) => {
-              const active = theme === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => setTheme(opt.value)}
-                  className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
-                    active
-                      ? "border-primary bg-primary/5"
-                      : "border-transparent bg-muted/50 hover:bg-muted"
-                  }`}
-                >
-                  <opt.icon className={`size-6 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className={`text-sm font-medium ${active ? "text-primary" : "text-muted-foreground"}`}>
-                    {opt.label}
-                  </span>
-                  {active && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      Active
-                    </Badge>
-                  )}
-                </button>
-              );
-            })}
-          </div>
         </CardContent>
       </Card>
 

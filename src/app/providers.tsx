@@ -33,7 +33,7 @@ function PostHogPageviewTracker() {
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" disableTransitionOnChange>
         <AuthProvider>
           <ConfirmProvider>
             <Suspense fallback={null}>

@@ -228,6 +228,7 @@ function WorldMap({ countryStats, isDark }: { countryStats: CountryStat[]; isDar
   const dataMap = useMemo(() => {
     const m = new Map<string, CountryStat>();
     countryStats.forEach(cs => {
+      if (!cs.countryCode) return;
       const iso2 = cs.countryCode.toUpperCase();
       const numericCode = ISO2_TO_NUMERIC[iso2];
       if (numericCode) m.set(numericCode, cs);

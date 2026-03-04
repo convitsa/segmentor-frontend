@@ -11,8 +11,6 @@ import { cn } from "@/lib/utils";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
 const SECTION_TITLES: Record<string, string> = {
   dashboard: "Dashboard",
   visitors: "Visitors",
@@ -49,23 +47,18 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (isChat && conversationId) {
-      const token = typeof window !== "undefined" ? localStorage.getItem("segmentor_token") : null;
-      const projectId = pathname.split("/projects/")[1]?.split("/")[0] || pathname.split("/projects/")[1];
-      if (projectId && token) {
-        fetch(`${API_URL}/api/projects/${projectId}/segi/conversations/${conversationId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data?.conversation?.title) setChatTitle(data.conversation.title);
-          })
-          .catch(() => {});
-      }
-    } else {
-      setChatTitle("");
-    }
-  }, [isChat, conversationId, pathname]);
+    if (!isChat) { setChatTitle(""); return; }
+    const handler = (e: Event) => {
+      const title = (e as CustomEvent<string>).detail;
+      setChatTitle(title || "");
+    };
+    window.addEventListener("segi-title-updated", handler);
+    return () => window.removeEventListener("segi-title-updated", handler);
+  }, [isChat]);
+
+  useEffect(() => {
+    if (!isChat || !conversationId) setChatTitle("");
+  }, [isChat, conversationId]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed(prev => {
@@ -107,7 +100,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           )}
           <main className={cn(
             "flex-1 min-h-0",
-            isChat ? "overflow-hidden" : section === "visitors" ? "overflow-hidden" : "overflow-auto p-6"
+            isChat ? "overflow-hidden" : section === "visitors" ? "relative overflow-hidden" : "overflow-auto p-6"
           )}>
             {children}
           </main>

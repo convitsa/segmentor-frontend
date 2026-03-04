@@ -139,24 +139,49 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+
+  const updateTitle = useCallback((title: string) => {
+    onTitleUpdate?.(title);
+    window.dispatchEvent(new CustomEvent("segi-title-updated", { detail: title }));
+  }, [onTitleUpdate]);
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const [activeToolCalls, setActiveToolCalls] = useState<Map<string, ToolCallState>>(new Map());
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [inputRows, setInputRows] = useState(1);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const userScrolledUp = useRef(false);
+  const prevConversationIdRef = useRef<string | null | undefined>(initialConversationId);
 
   useEffect(() => {
-    if (initialConversationId && initialConversationId !== conversationId) {
+    if (initialConversationId === prevConversationIdRef.current) return;
+    prevConversationIdRef.current = initialConversationId;
+
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+
+    setInput("");
+    setInputRows(1);
+    setIsStreaming(false);
+    setIsThinking(false);
+    setActiveToolCalls(new Map());
+
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+
+    if (initialConversationId) {
       loadConversation(initialConversationId);
-    } else if (!initialConversationId && conversationId) {
+    } else {
       setMessages([]);
       setConversationId(null);
-      setActiveToolCalls(new Map());
+      updateTitle("");
     }
-  }, [initialConversationId]);
+  }, [initialConversationId, updateTitle]);
 
   useEffect(() => {
     if (!userScrolledUp.current) {
@@ -166,7 +191,33 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
 
   useEffect(() => {
     inputRef.current?.focus();
+  }, [initialConversationId]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
   }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setMessages([]);
+      setConversationId(null);
+      setInput("");
+      setInputRows(1);
+      setIsStreaming(false);
+      setIsThinking(false);
+      setActiveToolCalls(new Map());
+      updateTitle("");
+      if (inputRef.current) inputRef.current.style.height = "auto";
+      inputRef.current?.focus();
+    };
+    window.addEventListener("segi-new-chat", handler);
+    return () => window.removeEventListener("segi-new-chat", handler);
+  }, [updateTitle]);
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
@@ -194,7 +245,7 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
       setConversationId(id);
 
       if (data.conversation.title) {
-        onTitleUpdate?.(data.conversation.title);
+        updateTitle(data.conversation.title);
       }
 
       const loaded: ChatMessage[] = [];
@@ -233,6 +284,8 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
     if (!text || isStreaming) return;
 
     setInput("");
+    setInputRows(1);
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setMessages((prev) => [...prev, { type: "user", content: text }]);
     setIsStreaming(true);
     setIsThinking(true);
@@ -384,6 +437,7 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
               setIsStreaming(false);
               setIsThinking(false);
               setActiveToolCalls(new Map());
+              if (parsed.title) updateTitle(parsed.title);
               window.dispatchEvent(new CustomEvent("segi-conversations-updated"));
               break;
 
@@ -437,10 +491,11 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
       setIsStreaming(false);
       setIsThinking(false);
     }
-  }, [input, isStreaming, projectId, conversationId, onConversationCreated]);
+  }, [input, isStreaming, projectId, conversationId, onConversationCreated, updateTitle]);
 
   function stopStreaming() {
     abortRef.current?.abort();
+    abortRef.current = null;
     setIsStreaming(false);
     setIsThinking(false);
     setMessages((prev) => {
@@ -464,7 +519,7 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
 
   const inputBar = (
     <div className="max-w-3xl mx-auto w-full px-6 py-4">
-      <div className="flex items-end gap-3 rounded-full dark:bg-[#484848] bg-muted px-5 py-2.5">
+      <div className={`flex items-end gap-3 ${inputRows > 1 ? "rounded-3xl" : "rounded-full"} dark:bg-[#484848] bg-muted px-5 py-2.5 transition-[border-radius] duration-150`}>
         <textarea
           ref={inputRef}
           value={input}
@@ -477,12 +532,14 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
           }}
           placeholder="Ask anything..."
           rows={1}
-          className="flex-1 bg-transparent text-sm outline-none resize-none placeholder:text-muted-foreground/60 min-h-[24px] max-h-[120px]"
+          className="flex-1 bg-transparent text-sm outline-none resize-none placeholder:text-muted-foreground/60 min-h-[24px] max-h-[120px] overflow-y-auto"
           style={{ height: "auto" }}
           onInput={(e) => {
             const el = e.currentTarget;
             el.style.height = "auto";
-            el.style.height = Math.min(el.scrollHeight, 120) + "px";
+            const h = Math.min(el.scrollHeight, 120);
+            el.style.height = h + "px";
+            setInputRows(h > 30 ? 2 : 1);
           }}
           disabled={isStreaming}
         />
@@ -519,21 +576,75 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
           >
             <div className="flex-1 flex flex-col items-center justify-center px-6">
               <SegiOrb size={56} className="mb-6" />
-              <h1 className="text-2xl font-bold dark:text-white mb-1">What we're cooking todayyy?</h1>
-              <p className="text-muted-foreground text-sm mb-4">Ask me anything about your visitors, traffic, and conversions.</p>
-              <div className="mt-10 grid grid-cols-3 gap-4 w-full max-w-2xl">
+              <h1 className="text-2xl  dark:text-white mb-2">Let's Analyze Something</h1>
+              <div className="mt-8 grid grid-cols-3 gap-5 w-full max-w-3xl">
                 {[
-                  { title: "Drive traffic", desc: "How can I boost visitors from organic search?" },
-                  { title: "Hit a revenue goal", desc: "Which visitors are most likely to convert?" },
-                  { title: "Use personalization", desc: "Show me how to personalize for returning users" },
+                  {
+                    title: "Top performing countries by engagement score",
+                    desc: "Show me the top performing countries by engagement score",
+                    visual: (
+                      <div className="relative h-[160px] flex items-center justify-center overflow-hidden">
+                        <div className="absolute w-14 h-14 rounded-xl dark:bg-[#3e3e3e]/40 bg-muted shadow-sm rotate-[-15deg] -translate-x-8 translate-y-1 flex items-center justify-center">
+                          <span className="text-2xl select-none">🇺🇸</span>
+                        </div>
+                        <div className="absolute w-14 h-14 rounded-xl dark:bg-[#3e3e3e] bg-muted shadow-md z-10 -translate-y-2 flex items-center justify-center">
+                          <span className="text-2xl select-none">🇨🇦</span>
+                        </div>
+                        <div className="absolute w-14 h-14 rounded-xl dark:bg-[#484848] bg-muted/80 shadow-sm rotate-[15deg] translate-x-8 translate-y-1 flex items-center justify-center">
+                          <span className="text-2xl select-none">🇬🇧</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    title: "User Activity Performance Summary",
+                    desc: "Give me a user activity performance summary",
+                    visual: (
+                      <div className="h-[160px] flex flex-col items-center justify-center gap-2.5 px-5">
+                        <div className="w-full h-8 rounded-[10px] dark:bg-[#393939] bg-muted flex items-center gap-2.5 px-3 opacity-50">
+                          <div className="w-4 h-4 rounded-full dark:border dark:border-[#5a5a5a] bg-muted-foreground/10 shrink-0" />
+                          <div className="h-1.5 w-10 rounded-full dark:bg-[#5a5a5a] bg-muted-foreground/20" />
+                        </div>
+                        <div className="w-full h-10 rounded-[13px] dark:bg-[#3e3e3e] bg-muted flex items-center gap-2.5 px-3.5 shadow-sm">
+                          <div className="w-5 h-5 rounded-full dark:border dark:border-[#5a5a5a] bg-muted-foreground/15 shrink-0" />
+                          <div className="h-1.5 w-[86px] rounded-full dark:bg-[#5a5a5a] bg-muted-foreground/25" />
+                        </div>
+                        <div className="w-full h-8 rounded-[10px] dark:bg-[#383838] bg-muted flex items-center gap-2.5 px-3 opacity-50">
+                          <div className="w-4 h-4 rounded-full dark:border dark:border-[#5a5a5a] bg-muted-foreground/10 shrink-0" />
+                          <div className="h-1.5 w-12 rounded-full dark:bg-[#5a5a5a] bg-muted-foreground/20" />
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    title: "EU users heatmap — attention distribution report",
+                    desc: "Show me a heatmap of EU users attention distribution",
+                    visual: (
+                      <div className="h-[160px] flex items-center justify-center px-4">
+                        <div className="w-full h-[90px] rounded-xl overflow-hidden relative" style={{ background: "linear-gradient(180deg, rgba(62,62,62,0.3) 0%, #3E3E3E 100%)" }}>
+                          <div className="absolute top-4 right-4 -translate-x-1/4 flex flex-col items-center gap-1.5">
+                            <div className="h-0.5 w-16 rounded-full dark:bg-[#3e3e3e] bg-muted-foreground/15" />
+                            <div className="h-0.5 w-7 rounded-full dark:bg-[#3e3e3e] bg-muted-foreground/10" />
+                          </div>
+                          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-[107px] h-[41px] rounded-[10px] dark:bg-[#444444] bg-muted" />
+                          <div className="absolute top-1 right-5 w-7 h-7 rounded-full dark:bg-white/60 blur-[12px]" />
+                          <div className="absolute top-3 left-5 w-7 h-7 rounded-full dark:bg-white/30 blur-[12px]" />
+                          <div className="absolute bottom-2 left-8 w-7 h-7 rounded-full dark:bg-white/30 blur-[12px]" />
+                          <div className="absolute bottom-0 right-2 w-7 h-7 rounded-full dark:bg-white/60 blur-[12px]" />
+                        </div>
+                      </div>
+                    ),
+                  },
                 ].map((q) => (
                   <button
                     key={q.title}
                     onClick={() => { setInput(q.desc); inputRef.current?.focus(); }}
-                    className="text-left px-4 py-4 rounded-lg border dark:border-[#484848] hover:bg-muted/40 transition-colors cursor-pointer"
+                    className="text-left rounded-lg border dark:border-[#484848] hover:bg-muted/30 transition-colors cursor-pointer overflow-hidden flex flex-col"
                   >
-                    <p className="text-sm font-medium dark:text-white">{q.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{q.desc}</p>
+                    {q.visual}
+                    <div className="px-4 pb-4 pt-2">
+                      <p className="text-sm font-medium dark:text-white leading-snug">{q.title}</p>
+                    </div>
                   </button>
                 ))}
               </div>
