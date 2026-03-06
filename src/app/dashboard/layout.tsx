@@ -17,7 +17,6 @@ const SECTION_TITLES: Record<string, string> = {
   personalizations: "Personalizations",
   audiences: "Audiences",
   analytics: "Analytics",
-  recordings: "Session Recordings",
   setup: "Setup",
   settings: "Settings",
   billing: "Billing",
@@ -86,8 +85,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       >
         <div className="flex-1 flex flex-col rounded-xl border bg-[#343434] shadow-sm overflow-hidden min-h-0">
           {!hideHeader && (
-            <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 px-6 border-b bg-background dark:bg-[#343434]">
-              <span className="text-lg font-semibold truncate">
+            <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 px-[18px] border-b dark:border-[#484848] bg-background dark:bg-[#343434]">
+              <span className="text-base font-normal truncate dark:text-[#C2C0B6]">
                 {isChat ? (chatTitle || "New chat") : (SECTION_TITLES[section] || "Overview")}
               </span>
               {isChat && conversationId && (

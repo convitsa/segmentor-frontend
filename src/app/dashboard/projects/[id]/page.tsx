@@ -50,8 +50,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { IntegrationsSettings } from "@/components/integrations-settings";
-import { RecordingsDashboard } from "@/components/recordings-dashboard";
 import { SegiChatView } from "@/components/segi-chat-view";
+import { ReplaysDashboard } from "@/components/replays-dashboard";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -59,15 +59,18 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 interface AnalyticsSummary {
   totalImpressions: number;
   uniqueVisitors: number;
+  previousPeriod?: { totalImpressions: number; uniqueVisitors: number };
   dailyStats: { date: string; impressions: number; visitors: number }[];
 }
 
 interface OverviewData {
   totalVisitors: number;
-  previousPeriod: { totalVisitors: number; totalSessions: number };
+  previousPeriod: { totalVisitors: number; totalSessions: number; totalPageviews: number; totalRevenue: number };
   totalPageviews: number;
   totalRevenue: number;
   totalSessions: number;
+  todayVisitors: number;
+  liveVisitors: number;
   dailyStats: { date: string; visitors: number; sessions: number; pageviews: number }[];
 }
 
@@ -141,14 +144,14 @@ function StatCard({ value, label, change }: {
   const isPositive = change?.positive !== false;
 
   return (
-    <div className="rounded-2xl border border-border bg-transparent p-5 flex flex-col justify-between min-h-[150px]">
-      <div>
-        <p className="text-3xl font-bold tracking-tight dark:text-white">{value}</p>
-        <p className="text-sm text-muted-foreground mt-1.5">{label}</p>
+    <div className="rounded-2xl border dark:border-[#484848] bg-transparent p-4 flex flex-col justify-between h-[164px]">
+      <div className="flex flex-col gap-2">
+        <p className="text-[24px] font-bold leading-normal dark:text-white">{value}</p>
+        <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">{label}</p>
       </div>
-      <div className="flex items-center gap-2.5 mt-auto pt-4">
+      <div className="flex items-center gap-2">
         <span
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] text-xs font-semibold"
+          className="inline-flex items-center gap-1 px-1.5 py-1 rounded-[5px] text-xs"
           style={{
             backgroundColor: isPositive ? "rgba(43, 153, 105, 0.1)" : "rgba(255, 111, 0, 0.1)",
             color: isPositive ? "#14F190" : "#FF6F00",
@@ -161,7 +164,7 @@ function StatCard({ value, label, change }: {
           )}
           {change ? `${change.value}%` : "—"}
         </span>
-        <span className="text-xs text-muted-foreground">vs last week</span>
+        <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground">vs last week</span>
       </div>
     </div>
   );
@@ -420,40 +423,47 @@ function ProjectContent() {
   const userName = user?.name || user?.email?.split("@")[0] || "there";
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-  const todayVisitors = overviewData?.totalVisitors ?? 0;
+  const liveNow = overviewData?.liveVisitors ?? 0;
+  const todayTotal = overviewData?.todayVisitors ?? 0;
 
+  const impressionsChange = analyticsSummary
+    ? percentChange(analyticsSummary.totalImpressions, analyticsSummary.previousPeriod?.totalImpressions ?? 0)
+    : null;
   const visitorsChange = overviewData
     ? percentChange(overviewData.totalVisitors, overviewData.previousPeriod.totalVisitors)
     : null;
-  const sessionsChange = overviewData
-    ? percentChange(overviewData.totalSessions, overviewData.previousPeriod.totalSessions)
+  const pageviewsChange = overviewData
+    ? percentChange(overviewData.totalPageviews, overviewData.previousPeriod.totalPageviews)
+    : null;
+  const revenueChange = overviewData
+    ? percentChange(overviewData.totalRevenue, overviewData.previousPeriod.totalRevenue)
     : null;
 
   return (
-    <div className={section === "chat" ? "h-full" : "space-y-6"}>
+    <div className={section === "chat" ? "h-full" : "space-y-4"}>
       {/* ========== DASHBOARD ========== */}
       {section === "dashboard" && (
         <>
           {/* Greeting Card */}
-          <div className="rounded-2xl p-6 dark:bg-[#484848] bg-muted/60">
+          <div className="rounded-2xl px-6 py-8 dark:bg-[#484848] bg-muted/60">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold dark:text-white">Hey, {userName}</h1>
-                <p className="text-m  mt-1.5 text-base">
-                  It&apos;s {dateStr} and{" "}
-                  <span className="inline-flex items-center gap-1 align-middle px-2 py-0.5 rounded-md dark:bg-[#415549] bg-black/10">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "#14F190" }} />
-                    <span className="font-semibold text-sm" style={{ color: "#14F190" }}>{formatNumber(todayVisitors)}</span>
-                  </span>{" "}
-                  visitors on your website today.
-                </p>
+              <div className="flex flex-col gap-1.5">
+                <h1 className="text-[20px] font-normal dark:text-white">Hey, {userName}</h1>
+                <div className="flex items-center gap-2 text-[18px] dark:text-[#C2C0B6] text-muted-foreground">
+                  <span>It&apos;s {dateStr} and</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[7px]" style={{ backgroundColor: "rgba(0, 200, 81, 0.1)" }}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#14F190" }} />
+                    <span style={{ color: "#14F190" }}>{formatNumber(todayTotal)}</span>
+                  </span>
+                  <span>visitors on your website today.</span>
+                </div>
               </div>
               <button
                 onClick={() => navigate("chat")}
-                className="btn-gradient-animate shrink-0 h-13 px-8 rounded-full text-[15px] font-semibold text-white flex items-center gap-2.5 transition-all cursor-pointer"
-                style={{ background: "linear-gradient(90deg, #C0CC4C 0%, #F4925A 25%, #D0B659 50%, #76CB69 75%, #C0CC4C 100%)", backgroundSize: "200% 200%" }}
+                className="btn-gradient-animate shrink-0 px-5 py-3.5 rounded-full text-[16px] font-medium text-white flex items-center gap-2.5 transition-all cursor-pointer"
+                style={{ background: "linear-gradient(90deg, #C0CC4C 0%, #F4925A 37%, #D0B659 84%, #76CB69 100%)", backgroundSize: "200% 200%" }}
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-5 w-5" />
                 Ask AI for more
               </button>
             </div>
@@ -464,7 +474,7 @@ function ProjectContent() {
             <StatCard
               value={analyticsSummary ? formatNumber(analyticsSummary.totalImpressions) : "—"}
               label="Impressions"
-              change={sessionsChange}
+              change={impressionsChange}
             />
             <StatCard
               value={overviewData ? formatNumber(overviewData.totalVisitors) : "—"}
@@ -474,77 +484,86 @@ function ProjectContent() {
             <StatCard
               value={overviewData ? formatNumber(overviewData.totalPageviews) : "—"}
               label="Pageviews"
-              change={sessionsChange}
+              change={pageviewsChange}
             />
             <StatCard
               value={overviewData ? formatCurrency(overviewData.totalRevenue) : "—"}
               label="Revenue"
-              change={visitorsChange}
+              change={revenueChange}
             />
           </div>
 
           {/* Bottom Row: Latest Visitors + Traffic Overview */}
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Latest Visitors */}
-            <div className="rounded-2xl border border-border bg-transparent overflow-hidden ">
-              <div className="flex items-center justify-between pt-3 pb-2 w-full dark:bg-[#383838] pl-2">
-                <p className="text-sm font-semibold dark:text-white pl-1">Latest visitors</p>
-                <Button variant="ghost" size="sm" className="text-xs h-7 text-primary" onClick={() => navigate("visitors")}>
+            <div className="rounded-2xl border dark:border-[#484848] bg-transparent overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2.5 dark:bg-[rgba(255,255,255,0.02)]">
+                <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Latest visitors</p>
+                <button onClick={() => navigate("visitors")} className="flex items-center gap-1 text-xs dark:text-[#C2C0B6] text-muted-foreground dark:hover:text-white hover:text-foreground transition-colors duration-150 cursor-pointer">
                   View all
-                  <ArrowRight className="ml-1 h-3 w-3" />
-                </Button>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <div className="divide-y dark:divide-[#484848] divide-border/50 px-4">
-                  {latestVisitors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">No visitors yet</p>
-                  ) : (
-                    latestVisitors.map((v) => {
-                      const displayName = v.name || v.email || v.visitorId.slice(0, 12);
-                      const flag = countryCodeToFlag(v.countryCode);
-                      const location = v.city || v.country || "";
-                      return (
-                        <div key={v.id} className="flex items-center p-4 cursor-pointer hover:bg-muted/40 transition-colors rounded-lg" onClick={() => openVisitorDetail(v.visitorId)}>
-                          <img
-                            src={visitorAvatarUrl(v, 80)}
-                            alt=""
-                            className="h-10 w-10 rounded-full shrink-0 bg-muted object-cover "
-                            loading="lazy"
-                          />
-                          <span className="text-sm font-medium truncate dark:text-white w-[120px] shrink-0 ml-4">
-                            {displayName}
-                          </span>
-                          <span className="text-sm text-muted-foreground truncate w-[120px] shrink-0 ml-4">
+              <div className="px-3">
+                {latestVisitors.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">No visitors yet</p>
+                ) : (
+                  latestVisitors.map((v, i) => {
+                    const displayName = v.name || v.email || v.visitorId.slice(0, 12);
+                    const flag = countryCodeToFlag(v.countryCode);
+                    const location = v.city || v.country || "";
+                    return (
+                      <div key={v.id}>
+                        <div
+                          className="grid items-center py-2.5 cursor-pointer hover:bg-muted/30 transition-colors -mx-1 px-1 rounded"
+                          style={{ gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)" }}
+                          onClick={() => openVisitorDetail(v.visitorId)}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={visitorAvatarUrl(v, 64)}
+                              alt=""
+                              className="h-8 w-8 rounded-full shrink-0 bg-muted object-cover"
+                              loading="lazy"
+                            />
+                            <span className="text-xs truncate dark:text-white">{displayName}</span>
+                          </div>
+                          <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground truncate text-right">
                             {location} {flag}
                           </span>
-                          <span className="text-sm text-muted-foreground shrink-0 ml-4">
+                          <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground truncate text-right">
                             {v.browser || "—"}
                           </span>
-                          <span className="text-sm text-muted-foreground shrink-0 ml-auto text-right">
+                          <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground text-right">
                             {timeAgo(v.lastSeenAt)}
                           </span>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
+                        {i < latestVisitors.length - 1 && (
+                          <div className="border-b dark:border-[#484848]" />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             {/* Traffic Overview Chart */}
-            <div className="rounded-2xl border border-border bg-transparent flex flex-col overflow-hidden ">
-              <div className="flex items-center justify-between px-2 pt-2  w-full dark:bg-[#383838]">
-                <p className="text-sm font-semibold dark:text-white pt-2 pb-3 pl-1">Traffic overview</p>
-                <span className="text-xs text-muted-foreground">Last 7 days</span>
+            <div className="rounded-2xl border dark:border-[#484848] bg-transparent flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2.5 dark:bg-[rgba(255,255,255,0.02)]">
+                <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Traffic overview</p>
+                <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Last 7 days</span>
               </div>
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col px-3 py-2.5">
                 {chartData.length > 0 ? (
                   <>
-                    <div className="flex-1 min-h-[280px] pt-3">
+                    <div className="flex-1 min-h-[277px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
-                          <CartesianGrid stroke="var(--border)" strokeOpacity={0.3} vertical={false} />
+                        <LineChart data={chartData} margin={{ top: 8, right: 4, left: -10, bottom: 0 }}>
+                          <CartesianGrid stroke="#484848" strokeOpacity={0.5} vertical={false} />
                           <XAxis
                             dataKey="date"
-                            tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                            tick={{ fontSize: 12, fill: "#C2C0B6" }}
                             tickFormatter={(v) => `${new Date(v).getDate()}`}
                             axisLine={false}
                             tickLine={false}
@@ -555,9 +574,9 @@ function ProjectContent() {
                             contentStyle={{
                               fontSize: 12,
                               borderRadius: 8,
-                              border: "1px solid var(--border)",
-                              backgroundColor: "var(--popover)",
-                              color: "var(--popover-foreground)",
+                              border: "1px solid #484848",
+                              backgroundColor: "#343434",
+                              color: "#C2C0B6",
                             }}
                             labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                           />
@@ -566,19 +585,19 @@ function ProjectContent() {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="flex items-center justify-center gap-6 py-3">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#3ACB68" }} />
+                    <div className="flex items-center justify-center gap-5 py-2.5">
+                      <div className="flex items-center gap-1 text-xs dark:text-[#999] text-muted-foreground">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#3ACB68" }} />
                         Impressions
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#FA783E" }} />
+                      <div className="flex items-center gap-1 text-xs dark:text-[#999] text-muted-foreground">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "#FA783E" }} />
                         Visitors
                       </div>
                     </div>
                   </>
                 ) : (
-                  <div className="flex items-center justify-center flex-1 min-h-[280px] text-sm text-muted-foreground">
+                  <div className="flex items-center justify-center flex-1 min-h-[277px] text-xs text-muted-foreground">
                     No data available
                   </div>
                 )}
@@ -773,9 +792,9 @@ function ProjectContent() {
         <AnalyticsDashboard projectId={projectId} elements={elements} />
       )}
 
-      {/* ========== RECORDINGS ========== */}
-      {section === "recordings" && (
-        <RecordingsDashboard projectId={projectId} />
+      {/* ========== REPLAYS ========== */}
+      {section === "replays" && (
+        <ReplaysDashboard projectId={projectId} />
       )}
 
       {/* ========== INTEGRATIONS ========== */}
@@ -902,6 +921,93 @@ function ProjectContent() {
                     <Circle className="h-4 w-4" />
                     Could not reach runtime — check your backend is running
                   </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Session Replays */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                  <Settings className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Session Replays</CardTitle>
+                  <CardDescription>
+                    Record visitor sessions to replay them later in the dashboard
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Enable session replays</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Capture DOM interactions for playback. Privacy-safe: all inputs are masked by default.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={project.recordingEnabled || false}
+                    onClick={async () => {
+                      const newValue = !project.recordingEnabled;
+                      try {
+                        const updated = await api.patch<ProjectDTO>(`/api/projects/${projectId}`, {
+                          recordingEnabled: newValue,
+                        });
+                        setProject(updated);
+                        toast.success(newValue ? "Session replays enabled" : "Session replays disabled");
+                      } catch {
+                        toast.error("Failed to update setting");
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                      project.recordingEnabled ? "bg-primary" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                        project.recordingEnabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                {project.recordingEnabled && (
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div>
+                      <p className="text-sm font-medium">Sample rate</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Percentage of sessions to record (lower = less storage)
+                      </p>
+                    </div>
+                    <select
+                      value={String(project.recordingSampleRate ?? 1)}
+                      onChange={async (e) => {
+                        const rate = parseFloat(e.target.value);
+                        try {
+                          const updated = await api.patch<ProjectDTO>(`/api/projects/${projectId}`, {
+                            recordingSampleRate: rate,
+                          });
+                          setProject(updated);
+                          toast.success(`Sample rate set to ${Math.round(rate * 100)}%`);
+                        } catch {
+                          toast.error("Failed to update setting");
+                        }
+                      }}
+                      className="h-9 rounded-md border border-border bg-transparent px-3 text-sm"
+                    >
+                      <option value="1">100%</option>
+                      <option value="0.5">50%</option>
+                      <option value="0.25">25%</option>
+                      <option value="0.1">10%</option>
+                      <option value="0.01">1%</option>
+                    </select>
+                  </div>
                 )}
               </div>
             </CardContent>

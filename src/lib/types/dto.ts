@@ -71,7 +71,6 @@ export interface ProjectConfigDTO {
   id: string;
   siteUrl: string;
   elements: ElementConfigDTO[];
-  recordingEnabled?: boolean;
 }
 
 export interface AudienceDTO {
@@ -93,30 +92,11 @@ export interface ProjectDTO {
   name: string;
   siteUrl: string;
   publicKey: string;
-  recordingEnabled: boolean;
   userId: string;
+  recordingEnabled?: boolean;
+  recordingSampleRate?: number;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface SessionRecordingDTO {
-  id: string;
-  projectId: string;
-  visitorId: string;
-  sessionId: string;
-  status: string;
-  eventsCount: number;
-  duration: number;
-  pagesVisited: string[];
-  startedAt: string;
-  endedAt?: string | null;
-  summary?: string | null;
-  journeySteps?: unknown[];
-  clickPoints?: unknown[];
-  frictionPoints?: unknown[];
-  conversionEvents?: unknown[];
-  sentiment?: string | null;
-  analyzedAt?: string | null;
 }
 
 export interface AuthResponse {
@@ -152,6 +132,8 @@ export interface VisitorDTO {
   tags: string[];
   firstSeenAt: string;
   lastSeenAt: string;
+  aiSummary?: string | null;
+  aiSummaryUpdatedAt?: string | null;
 }
 
 export interface SessionDTO {
@@ -218,4 +200,31 @@ export interface PaginationDTO {
   limit: number;
   total: number;
   totalPages: number;
+}
+
+export interface ReplayDTO {
+  id: string;
+  sessionId: string;
+  visitorId: string;
+  visitorName: string;
+  visitorEmail: string | null;
+  status: string;
+  startedAt: string;
+  endedAt: string | null;
+  duration: number;
+  pageCount: number;
+  clickCount: number;
+  entryUrl: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  countryCode: string | null;
+  chunkCount: number;
+  totalSize: number;
+}
+
+export interface ReplayDetailDTO extends ReplayDTO {
+  events: unknown[];
+  journeySummary: string | null;
 }

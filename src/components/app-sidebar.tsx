@@ -53,11 +53,11 @@ import {
   PanelLeft,
   CreditCard,
   Plug,
-  Video,
   MessageSquarePlus,
   MoreHorizontal,
   Trash2,
   Loader2,
+  PlayCircle,
 } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
@@ -81,6 +81,7 @@ const NAV_GROUPS = [
     items: [
       { key: "analytics", label: "Analytics", icon: BarChart3 },
       { key: "visitors", label: "Visitors", icon: Globe },
+      { key: "replays", label: "Replays", icon: PlayCircle },
       { key: "editor", label: "Editor", icon: Pencil },
     ],
   },
@@ -113,6 +114,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null)
   const [visibleChatCount, setVisibleChatCount] = useState(15)
+  const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (pathname === "/dashboard/settings") {
@@ -266,75 +269,115 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         )}
       >
         {/* Project Switcher */}
-        <div className={cn("shrink-0 border-b dark:border-[#484848] flex items-center gap-1", collapsed ? "px-1.5 py-2 flex-col" : "px-3 py-2")}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg p-2 text-sm hover:bg-sidebar-accent transition-colors w-full",
-                  collapsed ? "justify-center" : "text-left"
-                )}
-              >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted dark:bg-white overflow-hidden">
-                  {currentProject?.siteUrl ? (
-                    <Favicon url={currentProject.siteUrl} size={20} />
-                  ) : (
-                    <span className="font-bold text-xs text-primary dark:text-black">{currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}</span>
-                  )}
-                </div>
-                {!collapsed && (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate font-semibold text-[14px] leading-tight dark:text-white">
-                        {currentProject?.name ?? "No project"}
-                      </p>
-                      {currentProject && (
-                        <p className="truncate text-[11px] text-muted-foreground dark:text-[#C2C0B6] leading-tight mt-0.5">
-                          {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
-                        </p>
-                      )}
-                    </div>
-                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#C2C0B6]" />
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="min-w-56 rounded-lg"
-              side={collapsed ? "right" : "bottom"}
-              align="start"
-              sideOffset={4}
+        <div className="shrink-0 relative">
+          <div className={cn(
+            "flex items-center gap-1 border-b dark:border-[#484848]",
+            collapsed ? "px-1.5 py-2 flex-col" : "px-1.5 pt-1.5 pb-1.5",
+          )}>
+            <button
+              onClick={() => !collapsed && setProjectSwitcherOpen(o => !o)}
+              className={cn(
+                "flex items-center gap-2.5 rounded-[9px] p-2 text-sm hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] transition-colors duration-150 w-full",
+                collapsed ? "justify-center" : "text-left"
+              )}
             >
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Projects
-              </DropdownMenuLabel>
-              {projects.map(p => (
-                <DropdownMenuItem
-                  key={p.id}
-                  onClick={() => switchProject(p.id)}
-                  className="gap-2 p-2"
-                >
-                  <div className="flex size-6 items-center justify-center rounded-sm border overflow-hidden">
-                    <Favicon url={p.siteUrl} size={16} />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted dark:bg-white overflow-hidden">
+                {currentProject?.siteUrl ? (
+                  <Favicon url={currentProject.siteUrl} size={20} />
+                ) : (
+                  <span className="font-bold text-xs text-primary dark:text-black">{currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}</span>
+                )}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-semibold text-[14px] leading-tight dark:text-white">
+                      {currentProject?.name ?? "No project"}
+                    </p>
+                    {currentProject && (
+                      <p className="truncate text-[11px] text-muted-foreground dark:text-[#C2C0B6] leading-tight mt-0.5">
+                        {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
+                      </p>
+                    )}
                   </div>
-                  <span className="flex-1 truncate">{p.name}</span>
-                  {p.id === currentProjectId && (
-                    <Check className="size-4 text-primary" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setCreateOpen(true)} className="gap-2 p-2">
-                <div className="flex size-6 items-center justify-center rounded-md border border-dashed">
-                  <Plus className="size-4" />
+                  <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#C2C0B6]" />
+                </>
+              )}
+            </button>
+            <Button variant="ghost" size="icon" className={cn("h-7 w-7 shrink-0 text-muted-foreground dark:text-[#C2C0B6]", !collapsed && "mr-1")} onClick={onToggle}>
+              <PanelLeft className="size-4" />
+            </Button>
+          </div>
+
+          {/* Overlay project list */}
+          {projectSwitcherOpen && !collapsed && (
+            <>
+              <div className="fixed inset-0 z-40" onMouseDown={() => setProjectSwitcherOpen(false)} />
+              <div className="absolute left-0 right-0 top-0 z-50 rounded-[9px] bg-white dark:bg-[#3d3d3d] border dark:border-[#484848] shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+                <button
+                  onClick={() => setProjectSwitcherOpen(false)}
+                  className="flex items-center gap-2.5 p-2 w-full text-left"
+                >
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted dark:bg-white overflow-hidden">
+                    {currentProject?.siteUrl ? (
+                      <Favicon url={currentProject.siteUrl} size={20} />
+                    ) : (
+                      <span className="font-bold text-xs text-primary dark:text-black">{currentProject?.name?.charAt(0)?.toUpperCase() ?? "S"}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-semibold text-[14px] leading-tight dark:text-white">
+                      {currentProject?.name ?? "No project"}
+                    </p>
+                    {currentProject && (
+                      <p className="truncate text-[11px] text-muted-foreground dark:text-[#C2C0B6] leading-tight mt-0.5">
+                        {(() => { try { return new URL(currentProject.siteUrl).hostname } catch { return currentProject.siteUrl } })()}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#C2C0B6]" />
+                </button>
+                <div className="px-2 pb-1.5">
+                  <div className="flex flex-col gap-2.5">
+                    <p className="px-1 text-[12px] text-muted-foreground/60 dark:text-[#999999]/60">
+                      Projects
+                    </p>
+                    {projects.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          switchProject(p.id)
+                          setProjectSwitcherOpen(false)
+                        }}
+                        className="flex items-center justify-between px-1 w-full"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex size-5 items-center justify-center rounded-sm overflow-hidden">
+                            <Favicon url={p.siteUrl} size={16} />
+                          </div>
+                          <span className="text-[14px] text-sidebar-foreground dark:text-[#C2C0B6]">{p.name}</span>
+                        </div>
+                        {p.id === currentProjectId && (
+                          <Check className="size-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <Separator className="my-2 dark:bg-[#484848]" />
+                  <button
+                    onClick={() => {
+                      setProjectSwitcherOpen(false)
+                      setCreateOpen(true)
+                    }}
+                    className="flex items-center gap-2 rounded-lg py-[7px] px-2 text-[14px] text-sidebar-foreground dark:text-[#C2C0B6] hover:bg-sidebar-accent dark:hover:bg-[#484848] transition-colors duration-150 w-full"
+                  >
+                    <Plus className="size-[18px] shrink-0" />
+                    <span>New project</span>
+                  </button>
                 </div>
-                <span className="text-muted-foreground">New project</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground dark:text-[#C2C0B6]" onClick={onToggle}>
-            <PanelLeft className="size-4" />
-          </Button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
@@ -358,15 +401,15 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       key={item.key}
                       onClick={() => navigateToSection(item.key)}
                       className={cn(
-                        "relative flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] transition-colors w-full",
+                        "relative flex items-center gap-2.5 rounded-lg py-[7px] text-[14px] transition-colors duration-150 w-full",
                         active
-                          ? "bg-primary/10 dark:bg-sidebar-primary text-foreground dark:text-black font-medium"
-                          : "text-sidebar-foreground dark:text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          ? "bg-primary/10 dark:bg-[#3d3d3d] text-foreground dark:text-[#C2C0B6] font-medium"
+                          : "text-sidebar-foreground dark:text-[#C2C0B6] hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] hover:text-sidebar-accent-foreground",
                         collapsed ? "justify-center px-0" : "text-left px-2"
                       )}
                       title={collapsed ? item.label : undefined}
                     >
-                      <item.icon className={cn("size-[17px] shrink-0", active && "text-foreground dark:text-black")} />
+                      <item.icon className={cn("size-[17px] shrink-0", active ? "text-foreground dark:text-[#C2C0B6]" : "text-sidebar-foreground dark:text-[#C2C0B6]")} />
                       {!collapsed && <span>{item.label}</span>}
                     </button>
                   )
@@ -474,69 +517,67 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </div>
 
         {/* Footer */}
-        <div className={cn("border-t dark:border-[#484848] py-2 flex flex-col gap-1", collapsed ? "px-1.5" : "px-3")}>
-          {/* User */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg p-2 text-sm hover:bg-sidebar-accent transition-colors w-full",
-                  collapsed ? "justify-center" : "text-left"
-                )}
-              >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-[#CDC4B6] dark:text-black text-[11px] font-semibold">
-                  {initials}
+        <div className={cn("relative border-t dark:border-[#484848] py-1.5", collapsed ? "px-1.5" : "px-1.5")}>
+          <button
+            onClick={() => !collapsed && setProfileMenuOpen(o => !o)}
+            className={cn(
+              "flex items-center gap-2.5 rounded-[9px] p-2 text-sm hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] transition-colors duration-150 w-full",
+              collapsed ? "justify-center" : "text-left"
+            )}
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-[#CDC4B6] dark:text-black text-[11px] font-semibold">
+              {initials}
+            </div>
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-[13px] font-medium leading-tight dark:text-white">{userName}</p>
+                  <p className="truncate text-[11px] text-muted-foreground dark:text-[#999999] leading-tight">{email}</p>
                 </div>
-                {!collapsed && (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-[13px] font-medium leading-tight dark:text-white">{userName}</p>
-                      <p className="truncate text-[11px] text-muted-foreground dark:text-[#999999] leading-tight">{email}</p>
-                    </div>
-                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#999999]" />
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="min-w-56 rounded-lg"
-              side={collapsed ? "right" : "top"}
-              align="end"
-              sideOffset={4}
-            >
-              <div className="p-2">
-                <p className="text-sm font-medium">{userName}</p>
-                <p className="text-xs text-muted-foreground">{email}</p>
+                <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#999999]" />
+              </>
+            )}
+          </button>
+
+          {profileMenuOpen && !collapsed && (
+            <>
+              <div className="fixed inset-0 z-40" onMouseDown={() => setProfileMenuOpen(false)} />
+              <div className="absolute left-1.5 right-1.5 bottom-1.5 z-50 rounded-[9px] bg-white dark:bg-[#3d3d3d] border dark:border-[#484848] shadow-lg animate-in fade-in slide-in-from-bottom-1 duration-150">
+                <div className="px-2 pt-1.5 pb-0.5 flex flex-col gap-0.5">
+                  {([
+                    { label: "Settings", icon: Settings, action: () => { setProfileMenuOpen(false); router.push("/dashboard/settings") } },
+                    { label: "Billing", icon: CreditCard, action: () => { setProfileMenuOpen(false); router.push("/dashboard/billing") } },
+                    { label: "Integrations", icon: Plug, action: () => { setProfileMenuOpen(false); navigateToSection("integrations") } },
+                    { label: "Setup", icon: Settings, action: () => { setProfileMenuOpen(false); navigateToSection("setup") } },
+                    { label: "Log out", icon: LogOut, action: () => { setProfileMenuOpen(false); handleLogout() } },
+                  ] as const).map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={item.action}
+                      className="flex items-center gap-2 rounded-lg py-[7px] px-2 text-[14px] text-sidebar-foreground dark:text-[#C2C0B6] hover:bg-sidebar-accent dark:hover:bg-[#484848] transition-colors duration-150 w-full"
+                    >
+                      <item.icon className="size-[18px] shrink-0" />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <Separator className="dark:bg-[#484848] mx-2" />
+                <button
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2.5 p-2 w-full text-left"
+                >
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-[#CDC4B6] dark:text-black text-[11px] font-semibold">
+                    {initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-[13px] font-medium leading-tight dark:text-white">{userName}</p>
+                    <p className="truncate text-[11px] text-muted-foreground dark:text-[#999999] leading-tight">{email}</p>
+                  </div>
+                  <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground dark:text-[#999999]" />
+                </button>
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard/billing")}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigateToSection("recordings")}>
-                <Video className="mr-2 h-4 w-4" />
-                Recordings
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigateToSection("integrations")}>
-                <Plug className="mr-2 h-4 w-4" />
-                Integrations
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigateToSection("setup")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Setup
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </>
+          )}
         </div>
       </aside>
 

@@ -720,8 +720,6 @@ function ToolCard({ tool, projectId }: { tool: ToolCallState; projectId: string 
   const isExport = tool.name === "export_visitors";
   const isClear = tool.name === "clear_filters";
   const isVisitorDetail = tool.name === "get_visitor_details";
-  const isSearchRecordings = tool.name === "search_recordings";
-  const isAnalyzeBehavior = tool.name === "analyze_behavior_patterns";
 
   let icon;
   let label: string;
@@ -747,14 +745,6 @@ function ToolCard({ tool, projectId }: { tool: ToolCallState; projectId: string 
     icon = <Download className="h-3.5 w-3.5" />;
     label = isRunning ? "Preparing export..." : "Export ready";
     if (tool.result) summary = tool.result.summary || `${tool.result.recordCount} records`;
-  } else if (isSearchRecordings) {
-    icon = <BarChart3 className="h-3.5 w-3.5" />;
-    label = isRunning ? "Searching recordings..." : "Session recordings";
-    if (tool.result) summary = tool.result.summary || `${tool.result.matchedCount} recordings found`;
-  } else if (isAnalyzeBehavior) {
-    icon = <BarChart3 className="h-3.5 w-3.5" />;
-    label = isRunning ? "Analyzing behavior..." : "Behavior analysis";
-    if (tool.result) summary = `Analyzed ${tool.result.matchedCount || 0} sessions`;
   } else {
     icon = <Loader2 className="h-3.5 w-3.5" />;
     label = tool.name;
