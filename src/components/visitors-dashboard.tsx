@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SegiOrb } from "@/components/segi-orb";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -631,19 +631,9 @@ function VisitorsList({
       {/* Visitor Grid */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="shadow-none py-0 gap-0">
-              <CardContent className="px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+          <div className="col-span-full flex items-center justify-center py-20">
+            <SegiOrb size={48} thinking />
+          </div>
         ) : visitors.length === 0 ? (
           <Card className="col-span-full">
             <CardContent className="py-16 text-center">
@@ -934,46 +924,8 @@ export function VisitorDetailPanel({
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
-          {/* Left skeleton */}
-          <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r p-6 flex flex-col gap-5">
-            <div className="flex flex-col items-center md:items-start gap-3">
-              <Skeleton className="h-16 w-16 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-3 w-44" />
-              </div>
-            </div>
-            <div className="space-y-3">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Skeleton className="h-16 rounded-lg" />
-              <Skeleton className="h-16 rounded-lg" />
-              <Skeleton className="h-16 rounded-lg" />
-              <Skeleton className="h-16 rounded-lg" />
-            </div>
-          </div>
-          {/* Right skeleton */}
-          <div className="flex-1 p-6 space-y-4 min-h-0">
-            <Skeleton className="h-4 w-48" />
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <Skeleton className="h-5 w-5 rounded-full shrink-0 mt-0.5" />
-                  <div className="space-y-1.5 flex-1">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-56" />
-                  </div>
-                  <Skeleton className="h-3 w-12 shrink-0" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-full">
+        <SegiOrb size={48} thinking />
       </div>
     );
   }

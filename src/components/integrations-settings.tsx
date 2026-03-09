@@ -19,6 +19,7 @@ import {
   Trash2,
   Unplug,
 } from "lucide-react";
+import { SegiOrb } from "@/components/segi-orb";
 
 interface Props {
   projectId: string;
@@ -231,7 +232,7 @@ function PolarCard({
                 disabled={disconnecting}
               >
                 {disconnecting ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <SegiOrb size={14} thinking className="mr-1.5" />
                 ) : (
                   <Unplug className="h-3.5 w-3.5 mr-1.5" />
                 )}
@@ -291,7 +292,7 @@ function PolarCard({
               </div>
               <Button onClick={handleConnect} disabled={saving}>
                 {saving ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <SegiOrb size={14} thinking className="mr-1.5" />
                 ) : (
                   <Plug className="h-3.5 w-3.5 mr-1.5" />
                 )}

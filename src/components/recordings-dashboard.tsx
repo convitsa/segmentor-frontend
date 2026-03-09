@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SegiOrb } from "@/components/segi-orb";
 import {
   ChevronLeft,
   ChevronRight,
@@ -218,10 +218,8 @@ export function RecordingsDashboard({ projectId }: Props) {
 
       {/* Recording list */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
-          ))}
+        <div className="flex items-center justify-center py-20">
+          <SegiOrb size={48} thinking />
         </div>
       ) : replays.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">

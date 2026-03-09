@@ -68,6 +68,7 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react"
+import { SegiOrb } from "@/components/segi-orb"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 
@@ -571,7 +572,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 <div className="flex flex-col gap-2">
                   {recordingsLoading && recordings.length === 0 && (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-4 w-4 animate-spin dark:text-[#C2C0B6]" />
+                      <SegiOrb size={24} thinking />
                     </div>
                   )}
                   {recordings.map((rec) => {
@@ -700,9 +701,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <ScrollArea className={cn("h-full", collapsed ? "px-1.5" : "px-3")}>
               <div className="flex flex-col gap-0.5 mt-0.5">
                 {loadingConversations && conversations.length === 0 && (
-                  <div className="flex items-center gap-2 px-2 py-2">
-                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                    <span className="text-[12px] text-muted-foreground">Loading...</span>
+                  <div className="flex items-center justify-center py-4">
+                    <SegiOrb size={20} thinking />
                   </div>
                 )}
                 {conversations.slice(0, visibleChatCount).map((conv) => {

@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/sheet";
 import { IntegrationsSettings } from "@/components/integrations-settings";
 import { SegiChatView } from "@/components/segi-chat-view";
+import { SegiOrb } from "@/components/segi-orb";
 import { RecordingsDashboard } from "@/components/recordings-dashboard";
 import { SessionPlayer } from "@/components/session-player";
 
@@ -410,7 +411,7 @@ function ProjectContent() {
   if (!project) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     );
   }
@@ -1067,7 +1068,7 @@ export default function ProjectDetailPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     }>
       <ProjectContent />

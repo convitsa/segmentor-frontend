@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SegiIcon } from "@/components/segi-icon";
+import { SegiOrb } from "@/components/segi-orb";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -546,9 +547,8 @@ export function SegiChatPanel({ projectId, onApplyFilters, onClose, onNewChat }:
             className="overflow-hidden border-b"
           >
             {loadingHistory ? (
-              <div className="flex items-center justify-center gap-2 py-4">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Loading history...</span>
+              <div className="flex items-center justify-center py-4">
+                <SegiOrb size={24} thinking />
               </div>
             ) : conversations.length === 0 ? (
               <div className="py-4 text-center text-xs text-muted-foreground">No conversations yet</div>
@@ -562,7 +562,7 @@ export function SegiChatPanel({ projectId, onApplyFilters, onClose, onNewChat }:
                     className={`w-full text-left px-4 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${c.id === conversationId ? "bg-muted/40 font-medium" : "text-muted-foreground"}`}
                   >
                     {loadingConversation === c.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                      <SegiOrb size={14} thinking className="shrink-0" />
                     ) : null}
                     <span className="truncate flex-1">{c.title || "Untitled"}</span>
                     <span className="text-[10px] text-muted-foreground shrink-0">

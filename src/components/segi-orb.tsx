@@ -1,66 +1,67 @@
-export function SegiOrb({ size = 24, className }: { size?: number; className?: string }) {
-  const id = `segiOrb_${size}_${Math.random().toString(36).slice(2, 6)}`;
+import { useMemo } from "react";
+
+const GOLDEN_ANGLE = 2.39996322;
+const NUM_CIRCLES = 600;
+const SCALE = 8.0;
+const COLOR = "rgb(250, 108, 52)";
+
+export function SegiOrb({
+  size = 24,
+  className,
+  thinking = false,
+}: {
+  size?: number;
+  className?: string;
+  thinking?: boolean;
+}) {
+  const dur = thinking ? "1.2s" : "3s";
+  const beginScale = thinking ? 0.002 : 0.005;
+  const beginOffset = thinking ? 0.001 : 0.0025;
+  const rValues = thinking ? "1;4;1" : "1;3;1";
+  const opacityValues = thinking ? "0.4;1;0.4" : "0.3;1;0.3";
+
+  const circles = useMemo(() => {
+    return Array.from({ length: NUM_CIRCLES }, (_, i) => {
+      const t = i + 0.5;
+      const angle = t * GOLDEN_ANGLE;
+      const r = SCALE * Math.sqrt(t);
+      return {
+        cx: 200 + r * Math.cos(angle),
+        cy: 200 + r * Math.sin(angle),
+      };
+    });
+  }, []);
 
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 42 42"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 400 400"
       className={className}
+      style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto" }}
     >
-      <defs>
-        <filter id={`${id}_f0`} x="-28.3043" y="-9.13042" width="79.4348" height="79.4348" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-          <feGaussianBlur stdDeviation="10.9565" result="effect1_foregroundBlur" />
-        </filter>
-        <filter id={`${id}_f1`} x="-4.56527" y="-0.913044" width="79.4348" height="79.4348" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-          <feGaussianBlur stdDeviation="10.9565" result="effect1_foregroundBlur" />
-        </filter>
-        <filter id={`${id}_f2`} x="-25.5653" y="-29.2174" width="79.4348" height="79.4348" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-          <feGaussianBlur stdDeviation="10.9565" result="effect1_foregroundBlur" />
-        </filter>
-        <filter id={`${id}_f3`} x="-1.90735e-05" y="-23.7391" width="79.4348" height="79.4348" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-          <feGaussianBlur stdDeviation="10.9565" result="effect1_foregroundBlur" />
-        </filter>
-        <clipPath id={`${id}_clip`}>
-          <rect width="42" height="42" rx="21" fill="white" />
-        </clipPath>
-        <style>{`
-          @keyframes ${id}_rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          #${id}_inner {
-            transform-origin: 21px 21px;
-            animation: ${id}_rotate 4s linear infinite;
-          }
-        `}</style>
-      </defs>
-      <g clipPath={`url(#${id}_clip)`}>
-        <g id={`${id}_inner`}>
-          <g filter={`url(#${id}_f0)`}>
-            <circle cx="11.4131" cy="30.587" r="17.8043" fill="#CBB83A" />
-          </g>
-          <g filter={`url(#${id}_f1)`}>
-            <circle cx="35.1521" cy="38.8043" r="17.8043" fill="#3ACB68" />
-          </g>
-          <g filter={`url(#${id}_f2)`}>
-            <circle cx="14.1521" cy="10.5" r="17.8043" fill="#FA783E" />
-          </g>
-          <g filter={`url(#${id}_f3)`}>
-            <circle cx="39.7174" cy="15.9783" r="17.8043" fill="#BDCB3A" />
-          </g>
-        </g>
-      </g>
+      {circles.map((c, i) => (
+        <circle key={i} cx={c.cx} cy={c.cy} r={1} fill={COLOR} opacity={0.3}>
+          <animate
+            attributeName="r"
+            values={rValues}
+            dur={dur}
+            begin={`${(i * beginScale + beginOffset).toFixed(4)}s`}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+          />
+          <animate
+            attributeName="opacity"
+            values={opacityValues}
+            dur={dur}
+            begin={`${(i * beginScale + beginOffset).toFixed(4)}s`}
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+          />
+        </circle>
+      ))}
     </svg>
   );
 }

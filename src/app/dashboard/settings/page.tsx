@@ -33,6 +33,7 @@ import {
   CreditCard,
   ArrowUpRight,
 } from "lucide-react";
+import { SegiOrb } from "@/components/segi-orb";
 
 interface ProfileData {
   id: string;
@@ -213,7 +214,7 @@ export default function SettingsPage() {
   if (loadingProfile) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     );
   }

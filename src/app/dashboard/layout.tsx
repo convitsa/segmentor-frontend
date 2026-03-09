@@ -8,8 +8,9 @@ import { SubscriptionGuard } from "@/components/subscription-guard";
 import { ProjectProvider } from "@/lib/project-context";
 import { AppSidebar } from "@/components/app-sidebar";
 import { cn } from "@/lib/utils";
-import { Download } from "lucide-react";
+import { Download, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SegiOrb } from "@/components/segi-orb";
 
 const SECTION_TITLES: Record<string, string> = {
   dashboard: "Dashboard",
@@ -24,6 +25,35 @@ const SECTION_TITLES: Record<string, string> = {
   integrations: "Integrations",
   chat: "",
 };
+
+function MobileOverlay() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  if (!isMobile) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-[#1a1a1a] flex flex-col items-center justify-center px-8 text-center gap-6">
+      <SegiOrb size={72} />
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold text-white">Desktop Experience Only</h2>
+        <p className="text-sm text-[#999] max-w-xs leading-relaxed">
+          Segmentor is built for desktop browsers. Open this page on your computer for the best experience.
+        </p>
+      </div>
+      <div className="flex items-center gap-2 mt-2 px-4 py-2.5 rounded-lg bg-[#2a2a2a] border border-[#444]">
+        <Monitor className="h-4 w-4 text-[#999]" />
+        <span className="text-xs text-[#bbb]">app.segmentor.io</span>
+      </div>
+    </div>
+  );
+}
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -77,6 +107,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-svh bg-[#2a2a2a] overflow-hidden">
+      <MobileOverlay />
       <AppSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       <div
         className={cn(

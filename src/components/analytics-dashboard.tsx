@@ -40,6 +40,7 @@ import {
   X,
   ChevronDown,
 } from "lucide-react";
+import { SegiOrb } from "@/components/segi-orb";
 
 function countryFlag(code: string): string {
   if (!code || code.length !== 2) return "";
@@ -272,13 +273,8 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
 
   if (overviewLoading && !overviewData) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="relative">
-          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-          </div>
-        </div>
-        <p className="mt-4 text-sm text-muted-foreground">Loading analytics...</p>
+      <div className="flex items-center justify-center py-20">
+        <SegiOrb size={48} thinking />
       </div>
     );
   }
@@ -535,7 +531,7 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
         </>
       ) : overviewLoading ? (
         <div className="flex items-center justify-center py-12">
-          <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+          <SegiOrb size={40} thinking />
         </div>
       ) : null}
     </div>

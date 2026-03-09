@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { ReplayDetailDTO } from "@/lib/types/dto";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SegiOrb } from "@/components/segi-orb";
 import {
   Loader2,
   Play,
@@ -310,9 +310,8 @@ export function SessionPlayer({ projectId, sessionId, onBack }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-[500px] rounded-2xl" />
-        <Skeleton className="h-20 rounded-2xl" />
+      <div className="flex items-center justify-center h-[520px]">
+        <SegiOrb size={48} thinking />
       </div>
     );
   }

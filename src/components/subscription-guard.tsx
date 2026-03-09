@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { SegiOrb } from "@/components/segi-orb";
 
 interface SubResponse {
   subscription: {
@@ -45,7 +45,7 @@ export function SubscriptionGuard({ children }: { children: React.ReactNode }) {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     );
   }

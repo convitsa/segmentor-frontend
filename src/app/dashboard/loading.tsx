@@ -1,7 +1,9 @@
+import { SegiOrb } from "@/components/segi-orb";
+
 export default function DashboardLoading() {
   return (
     <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="size-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+      <SegiOrb size={48} thinking />
     </div>
   );
 }

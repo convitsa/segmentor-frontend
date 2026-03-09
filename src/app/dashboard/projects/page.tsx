@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useProject } from "@/lib/project-context";
-import { RefreshCw } from "lucide-react";
+import { SegiOrb } from "@/components/segi-orb";
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     );
   }

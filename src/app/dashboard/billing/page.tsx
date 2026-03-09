@@ -37,6 +37,7 @@ import {
   ExternalLink,
   HelpCircle,
 } from "lucide-react";
+import { SegiOrb } from "@/components/segi-orb";
 
 interface SubPlan {
   id: string;
@@ -129,7 +130,7 @@ export default function DashboardBillingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     );
   }

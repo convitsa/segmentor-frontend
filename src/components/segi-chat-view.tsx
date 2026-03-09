@@ -114,11 +114,17 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
 function RenderedMarkdown({ content, streaming }: { content: string; streaming?: boolean }) {
   const rendered = useMemo(() => renderMarkdown(content), [content]);
+  const prevLenRef = useRef(0);
+
+  useEffect(() => {
+    prevLenRef.current = content.length;
+  }, [content]);
+
   return (
-    <>
+    <span className={streaming ? "segi-stream" : undefined}>
       {rendered}
       {streaming && <span className="inline-block w-1.5 h-4 bg-foreground/60 animate-pulse ml-0.5 -mb-0.5" />}
-    </>
+    </span>
   );
 }
 
@@ -659,7 +665,7 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
   if (loadingConversation) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <SegiOrb size={48} thinking />
       </div>
     );
   }
@@ -863,16 +869,8 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
                 ))}
 
                 {isThinking && !messages.some((m) => m.type === "assistant" && m.streaming) && activeToolCalls.size === 0 && (
-                  <div className="flex items-center gap-2.5">
-                    <SegiOrb size={24} />
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <div className="flex gap-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </div>
-                      <span>Thinking...</span>
-                    </div>
+                  <div className="flex items-center py-4">
+                    <SegiOrb size={48} thinking />
                   </div>
                 )}
               </div>
@@ -896,24 +894,34 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
 function MessageBubble({ message, projectId }: { message: ChatMessage; projectId: string }) {
   if (message.type === "user") {
     return (
-      <div className="flex justify-end">
+      <motion.div
+        className="flex justify-end"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
         <div className="max-w-[80%] dark:bg-[#484848] bg-muted rounded-xl px-4 py-3 text-sm dark:text-white">
           {message.content}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (message.type === "assistant") {
     return (
-      <div className="flex gap-3">
+      <motion.div
+        className="flex gap-3"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+      >
         <div className="shrink-0 mt-0.5">
           <SegiOrb size={24} />
         </div>
         <div className="text-sm leading-relaxed max-w-[90%]">
           <RenderedMarkdown content={message.content} streaming={message.streaming} />
         </div>
-      </div>
+      </motion.div>
     );
   }
 

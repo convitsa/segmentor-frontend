@@ -133,6 +133,19 @@
   background-size: 200% 200%;
 }
 
+@keyframes segi-fade-in {
+  from { opacity: 0; filter: blur(2px); transform: translateY(2px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+
+.segi-stream > * {
+  animation: segi-fade-in 0.3s ease-out both;
+}
+
+.segi-stream > *:last-child {
+  animation: segi-fade-in 0.25s ease-out both;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
