@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useProject } from "@/lib/project-context"
@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { posthog } from "@/lib/posthog"
 import { cn } from "@/lib/utils"
+import { motion, AnimatePresence } from "framer-motion"
 import { Favicon } from "@/components/favicon"
 import {
   DropdownMenu,
@@ -38,6 +39,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { useConfirm } from "@/components/confirm-dialog"
+import type { ReplayDTO, PaginationDTO } from "@/lib/types/dto"
 import {
   LayoutDashboard,
   Sparkles,
@@ -50,7 +53,6 @@ import {
   Plus,
   Check,
   Globe,
-  PanelLeft,
   CreditCard,
   Plug,
   MessageSquarePlus,
@@ -58,6 +60,13 @@ import {
   Trash2,
   Loader2,
   PlayCircle,
+  ArrowLeft,
+  ChevronDown,
+  Clock,
+  MousePointerClick,
+  Monitor,
+  Smartphone,
+  Tablet,
 } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
@@ -67,6 +76,43 @@ interface Conversation {
   title: string | null
   createdAt: string
   updatedAt: string
+}
+
+const AVATAR_STYLES = [
+  "adventurer", "adventurer-neutral", "avataaars", "big-ears", "big-smile",
+  "lorelei", "notionists", "open-peeps", "personas", "thumbs",
+] as const
+
+function hashSeed(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+function visitorAvatarUrl(v: { visitorEmail?: string | null; visitorId: string }, size = 80): string {
+  const seed = v.visitorEmail || v.visitorId
+  const style = AVATAR_STYLES[hashSeed(seed) % AVATAR_STYLES.length]
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&size=${size}&radius=50&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds} sec`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m < 60) return `${m} min${s ? ` ${s}s` : ""}`
+  const h = Math.floor(m / 60)
+  return `${h}h ${m % 60}m`
+}
+
+function timeAgo(date: string): string {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
 
 const NAV_GROUPS = [
@@ -81,7 +127,7 @@ const NAV_GROUPS = [
     items: [
       { key: "analytics", label: "Analytics", icon: BarChart3 },
       { key: "visitors", label: "Visitors", icon: Globe },
-      { key: "replays", label: "Replays", icon: PlayCircle },
+      { key: "recordings", label: "Recordings", icon: PlayCircle },
       { key: "editor", label: "Editor", icon: Pencil },
     ],
   },
@@ -113,9 +159,31 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const [loadingConversations, setLoadingConversations] = useState(false)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null)
+  const [renamingConversationId, setRenamingConversationId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [savingRename, setSavingRename] = useState(false)
   const [visibleChatCount, setVisibleChatCount] = useState(15)
   const [projectSwitcherOpen, setProjectSwitcherOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const confirm = useConfirm()
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  const [recordingsBrowserOpen, setRecordingsBrowserOpen] = useState(false)
+  const [recordings, setRecordings] = useState<ReplayDTO[]>([])
+  const [recordingsLoading, setRecordingsLoading] = useState(false)
+  const [recordingsTotal, setRecordingsTotal] = useState(0)
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  useEffect(() => {
+    if (!renamingConversationId) return
+    const viewport = chatScrollRef.current?.querySelector("[data-slot='scroll-area-viewport']") as HTMLElement | null
+    if (!viewport) return
+    const lockedTop = viewport.scrollTop
+    const lock = () => { viewport.scrollTop = lockedTop }
+    viewport.addEventListener("scroll", lock)
+    return () => viewport.removeEventListener("scroll", lock)
+  }, [renamingConversationId])
 
   useEffect(() => {
     if (pathname === "/dashboard/settings") {
@@ -129,8 +197,16 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       setActiveSection(section)
       if (section === "chat") {
         setActiveConversationId(searchParams.get("conversationId") || null)
+        setRecordingsBrowserOpen(false)
+        setSelectedSessionId(null)
       } else {
         setActiveConversationId(null)
+      }
+      if (section === "recordings") {
+        setRecordingsBrowserOpen(true)
+        setSelectedSessionId(searchParams.get("sessionId") || null)
+      } else if (section !== "recordings") {
+        setRecordingsBrowserOpen(false)
       }
     }
   }, [pathname, searchParams])
@@ -162,6 +238,24 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     return () => window.removeEventListener("segi-conversations-updated", handler)
   }, [loadConversations])
 
+  const loadRecordings = useCallback(async () => {
+    if (!currentProjectId) return
+    setRecordingsLoading(true)
+    try {
+      const res = await api.get<{ replays: ReplayDTO[]; pagination: PaginationDTO }>(
+        `/api/projects/${currentProjectId}/replays?limit=50&sortBy=startedAt&sortOrder=desc`
+      )
+      setRecordings(res.replays)
+      setRecordingsTotal(res.pagination.total)
+    } catch { /* ignore */ } finally {
+      setRecordingsLoading(false)
+    }
+  }, [currentProjectId])
+
+  useEffect(() => {
+    if (recordingsBrowserOpen) loadRecordings()
+  }, [recordingsBrowserOpen, loadRecordings])
+
   const form = useForm<CreateFormData>({
     resolver: zodResolver(createSchema),
     defaultValues: { name: "", siteUrl: "" },
@@ -188,9 +282,29 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       setActiveSection("editor")
       return
     }
+    if (section === "recordings") {
+      setRecordingsBrowserOpen(true)
+      setActiveSection("recordings")
+      setSelectedSessionId(null)
+      router.push(`/dashboard/projects/${currentProjectId}?section=recordings`)
+      return
+    }
     setActiveSection(section)
     setActiveConversationId(null)
+    setRecordingsBrowserOpen(false)
     router.push(`/dashboard/projects/${currentProjectId}?section=${section}`)
+  }
+
+  function selectRecording(sessionId: string) {
+    if (!currentProjectId) return
+    setSelectedSessionId(sessionId)
+    router.push(`/dashboard/projects/${currentProjectId}?section=recordings&sessionId=${sessionId}`)
+  }
+
+  function closeRecordingsBrowser() {
+    setRecordingsBrowserOpen(false)
+    setSelectedSessionId(null)
+    navigateToSection("dashboard")
   }
 
   function navigateToChat(conversationId?: string) {
@@ -212,8 +326,46 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     router.push(url)
   }
 
-  async function deleteConversation(e: React.MouseEvent, convId: string) {
-    e.stopPropagation()
+  function startRenaming(convId: string) {
+    const conv = conversations.find(c => c.id === convId)
+    setRenamingConversationId(convId)
+    setRenameValue(conv?.title || "")
+  }
+
+  async function commitRename(convId: string) {
+    const trimmed = renameValue.trim()
+    if (!trimmed) {
+      setRenamingConversationId(null)
+      return
+    }
+    setSavingRename(true)
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("segmentor_token") : null
+      const res = await fetch(`${API_URL}/api/projects/${currentProjectId}/segi/conversations/${convId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      })
+      if (res.ok) {
+        setConversations(prev => prev.map(c => c.id === convId ? { ...c, title: trimmed } : c))
+        window.dispatchEvent(new CustomEvent("segi-title-updated", { detail: trimmed }))
+      }
+    } catch {
+      toast.error("Failed to rename")
+    } finally {
+      setSavingRename(false)
+      setRenamingConversationId(null)
+    }
+  }
+
+  async function deleteConversation(convId: string) {
+    const ok = await confirm({
+      title: "Delete conversation",
+      description: "This conversation will be permanently deleted. This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+    })
+    if (!ok) return
     setDeletingConversationId(convId)
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("segmentor_token") : null
@@ -304,9 +456,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 </>
               )}
             </button>
-            <Button variant="ghost" size="icon" className={cn("h-7 w-7 shrink-0 text-muted-foreground dark:text-[#C2C0B6]", !collapsed && "mr-1")} onClick={onToggle}>
-              <PanelLeft className="size-4" />
-            </Button>
           </div>
 
           {/* Overlay project list */}
@@ -380,7 +529,108 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           )}
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+          {recordingsBrowserOpen && !collapsed ? (
+            <motion.div
+              key="recordings-browser"
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="flex-1 min-h-0 flex flex-col"
+            >
+              {/* Recording Browser Header */}
+              <div className="shrink-0 px-3 pt-3 flex flex-col gap-2">
+                <button
+                  onClick={closeRecordingsBrowser}
+                  className="flex items-center gap-1.5 text-[14px] dark:text-[#C2C0B6] hover:dark:text-white transition-colors"
+                >
+                  <ArrowLeft className="size-[18px]" />
+                  <span>Back</span>
+                </button>
+
+                <button
+                  onClick={() => setFiltersOpen(o => !o)}
+                  className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] transition-colors"
+                >
+                  <span className="text-[11px] font-medium text-sidebar-foreground/50 dark:text-[#999999]/60 tracking-wide">Filters</span>
+                  <ChevronDown className={cn("size-[18px] dark:text-[#C2C0B6] transition-transform duration-150", filtersOpen && "rotate-180")} />
+                </button>
+              </div>
+
+              {/* Recordings Count + List */}
+              <div className="shrink-0 px-3 mt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium dark:text-[#C2C0B6]/60">Recordings</span>
+                  <span className="text-[11px] dark:text-[#C2C0B6]/60">{recordingsTotal.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1 min-h-0 px-3 mt-2">
+                <div className="flex flex-col gap-2">
+                  {recordingsLoading && recordings.length === 0 && (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-4 w-4 animate-spin dark:text-[#C2C0B6]" />
+                    </div>
+                  )}
+                  {recordings.map((rec) => {
+                    const isSelected = selectedSessionId === rec.sessionId
+                    return (
+                      <button
+                        key={rec.id}
+                        onClick={() => selectRecording(rec.sessionId)}
+                        className={cn(
+                          "rounded-lg border text-left transition-colors w-full",
+                          isSelected
+                            ? "dark:border-[#C2C0B6]/30 dark:bg-[#3d3d3d]"
+                            : "dark:border-[#484848] dark:hover:border-[#C2C0B6]/20 dark:hover:bg-[#3d3d3d]/50"
+                        )}
+                      >
+                        <div className="px-2.5 py-2 flex items-center gap-2">
+                          <img
+                            src={visitorAvatarUrl(rec, 32)}
+                            alt=""
+                            className="size-4 rounded-full shrink-0 bg-muted"
+                            loading="lazy"
+                          />
+                          <span className="text-[13px] dark:text-white truncate flex-1">{rec.visitorName}</span>
+                          <span className="text-[13px] dark:text-[#C2C0B6]/60 shrink-0">{timeAgo(rec.startedAt)}</span>
+                        </div>
+                        <div className="mx-2.5 border-t dark:border-[#484848]" />
+                        <div className="px-2.5 py-2 flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5 text-[13px] dark:text-[#C2C0B6]">
+                            <Clock className="size-3 shrink-0" />
+                            <span>{formatDuration(rec.duration)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[13px] dark:text-[#C2C0B6]">
+                            <MousePointerClick className="size-3 shrink-0" />
+                            <span>{rec.clickCount}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[13px] dark:text-[#C2C0B6]">
+                            {rec.device === "mobile" ? <Smartphone className="size-3 shrink-0" /> : rec.device === "tablet" ? <Tablet className="size-3 shrink-0" /> : <Monitor className="size-3 shrink-0" />}
+                            <span>{rec.browser || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[13px] dark:text-[#C2C0B6]">
+                            <Globe className="size-3 shrink-0" />
+                            <span>{rec.country || "—"}</span>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </motion.div>
+          ) : (
+          <motion.div
+            key="main-nav"
+            initial={{ x: "-100%", opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "-100%", opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex-1 min-h-0 flex flex-col"
+          >
           {/* Nav Groups (fixed) */}
           <div className={cn("flex flex-col gap-0.5 pt-3 shrink-0", collapsed ? "px-1.5" : "px-3")}>
             {NAV_GROUPS.map((group, gi) => (
@@ -446,7 +696,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
           {/* Conversation List (scrollable) */}
           {!collapsed && (
-            <ScrollArea className={cn("flex-1 min-h-0", collapsed ? "px-1.5" : "px-3")}>
+            <div ref={chatScrollRef} className="flex-1 min-h-0">
+            <ScrollArea className={cn("h-full", collapsed ? "px-1.5" : "px-3")}>
               <div className="flex flex-col gap-0.5 mt-0.5">
                 {loadingConversations && conversations.length === 0 && (
                   <div className="flex items-center gap-2 px-2 py-2">
@@ -456,50 +707,90 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 )}
                 {conversations.slice(0, visibleChatCount).map((conv) => {
                   const isActive = activeSection === "chat" && activeConversationId === conv.id
+                  const isRenaming = renamingConversationId === conv.id
                   const title = conv.title || "Untitled"
-                  const displayTitle = title.length > 30 ? title.slice(0, 25) + "..." : title
                   return (
                     <div
                       key={conv.id}
                       className={cn(
-                        "group flex items-center gap-2 rounded-lg py-[6px] text-[13px] transition-colors cursor-pointer",
+                        "group flex items-center gap-1 rounded-lg py-[5px] text-[14px] transition-colors cursor-pointer",
                         isActive
-                          ? "bg-primary/10 dark:bg-sidebar-primary text-foreground dark:text-black font-medium"
-                          : "text-sidebar-foreground dark:text-sidebar-foreground hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d] hover:text-sidebar-accent-foreground",
-                        "pl-2 pr-1"
+                          ? "dark:bg-[#3d3d3d] dark:text-[#C2C0B6]"
+                          : "text-sidebar-foreground dark:text-[#C2C0B6] hover:bg-sidebar-accent dark:hover:bg-[#3d3d3d]",
+                        "pl-[6px] pr-1"
                       )}
-                      onClick={() => navigateToChat(conv.id)}
+                      onClick={() => !isRenaming && navigateToChat(conv.id)}
+                      onDoubleClick={() => isActive && startRenaming(conv.id)}
                       title={title}
                     >
-                      <span className="flex-1 min-w-0 truncate">
-                        {displayTitle}
-                      </span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className={cn(
-                              "shrink-0 h-6 w-6 rounded flex items-center justify-center hover:bg-muted transition-colors",
-                              isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                            )}
+                      {isRenaming ? (
+                        <div className="flex-1 min-w-0 overflow-hidden flex items-center gap-1.5" style={{ overscrollBehavior: "contain" }}>
+                          <input
+                            autoFocus
+                            disabled={savingRename}
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={() => !savingRename && commitRename(conv.id)}
+                            onKeyDown={(e) => {
+                              e.stopPropagation()
+                              if (savingRename) return
+                              if (e.key === "Enter") { e.preventDefault(); commitRename(conv.id) }
+                              if (e.key === "Escape") { e.preventDefault(); setRenamingConversationId(null) }
+                            }}
                             onClick={(e) => e.stopPropagation()}
-                          >
-                            {deletingConversationId === conv.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            className={cn(
+                              "w-full bg-transparent border-none outline-none text-[14px] dark:text-white py-0 px-0 leading-[20px]",
+                              savingRename && "opacity-50"
                             )}
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent side="right" align="start" sideOffset={4}>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={(e) => deleteConversation(e, conv.id)}
+                          />
+                          {savingRename && <Loader2 className="h-3 w-3 animate-spin shrink-0 dark:text-[#C2C0B6]" />}
+                        </div>
+                      ) : (
+                        <span className="flex-1 min-w-0 truncate leading-[20px]">
+                          {title.length > 25 ? title.slice(0, 25) + "…" : title}
+                        </span>
+                      )}
+                      {!isRenaming && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className={cn(
+                                "shrink-0 h-[18px] w-[18px] rounded flex items-center justify-center hover:bg-white/10 transition-colors",
+                                isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                              )}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {deletingConversationId === conv.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            side="right"
+                            align="start"
+                            sideOffset={4}
+                            className="dark:bg-[#3d3d3d] dark:border-[#484848] rounded-[9px] min-w-[100px] p-1.5"
                           >
-                            <Trash2 className="mr-2 h-3.5 w-3.5" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuItem
+                              className="text-[14px] dark:text-[#C2C0B6] rounded-lg px-2 py-1 gap-2 cursor-pointer"
+                              onClick={() => startRenaming(conv.id)}
+                            >
+                              <Pencil className="h-[18px] w-[18px]" />
+                              Rename
+                            </DropdownMenuItem>
+                            <Separator className="my-1.5 dark:bg-[#484848]" />
+                            <DropdownMenuItem
+                              className="text-[14px] dark:text-[#FE8181] text-destructive rounded-lg px-2 py-1 gap-2 cursor-pointer focus:text-destructive dark:focus:text-[#FE8181]"
+                              onClick={() => deleteConversation(conv.id)}
+                            >
+                              <Trash2 className="h-[18px] w-[18px]" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   )
                 })}
@@ -513,7 +804,11 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 )}
               </div>
             </ScrollArea>
+            </div>
           )}
+          </motion.div>
+          )}
+          </AnimatePresence>
         </div>
 
         {/* Footer */}

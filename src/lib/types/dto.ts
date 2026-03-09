@@ -228,3 +228,38 @@ export interface ReplayDetailDTO extends ReplayDTO {
   events: unknown[];
   journeySummary: string | null;
 }
+
+export interface SessionAnalysis {
+  metadata: {
+    visitor: string;
+    location: string;
+    device: string;
+    browser: string;
+    date: string;
+    verdict: string;
+    verdictType: "positive" | "warning" | "negative";
+  };
+  activityOverview: {
+    sessions: number;
+    pageviews: number;
+    rageClicks: number;
+    timeOnSite: string;
+  };
+  frictionScore: {
+    score: number;
+    level: "low" | "medium" | "high";
+    description: string;
+  };
+  frictionPoints: Array<{
+    severity: "red" | "orange" | "yellow";
+    text: string;
+  }>;
+  visitorJourney: string[];
+  recommendations: Array<{
+    title: string;
+    description: string;
+  }>;
+  verdict: {
+    summary: string;
+  };
+}

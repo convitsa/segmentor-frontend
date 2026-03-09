@@ -17,6 +17,7 @@ const SECTION_TITLES: Record<string, string> = {
   personalizations: "Personalizations",
   audiences: "Audiences",
   analytics: "Analytics",
+  recordings: "Session Recordings",
   setup: "Setup",
   settings: "Settings",
   billing: "Billing",
@@ -90,7 +91,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 {isChat ? (chatTitle || "New chat") : (SECTION_TITLES[section] || "Overview")}
               </span>
               {isChat && conversationId && (
-                <Button variant="outline" size="sm" className="text-xs h-8 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 shrink-0"
+                  onClick={() => window.dispatchEvent(new CustomEvent("segi-export"))}
+                >
                   <Download className="mr-1.5 h-3.5 w-3.5" />
                   Export
                 </Button>

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SegiOrb } from "@/components/segi-orb";
+import { SessionAnalysisView } from "@/components/session-analysis";
+import type { SessionAnalysis } from "@/lib/types/dto";
 import { Button } from "@/components/ui/button";
 import {
   ArrowUp,
@@ -15,7 +17,20 @@ import {
   Square,
   User,
   X,
+  PlayCircle,
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  Globe,
+  FileBarChart,
+  GitCompare,
+  LogOut,
+  Brain,
+  Activity,
+  BookOpen,
+  Eye,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 function renderInline(text: string, lineKey: number): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -125,20 +140,27 @@ interface ToolCallState {
 type ChatMessage =
   | { type: "user"; content: string }
   | { type: "assistant"; content: string; streaming?: boolean }
-  | { type: "tool"; tool: ToolCallState };
+  | { type: "tool"; tool: ToolCallState }
+  | { type: "analysis"; analysis: SessionAnalysis };
 
 interface Props {
   projectId: string;
   conversationId?: string | null;
+  autoMessage?: string | null;
+  prefillRecording?: string | null;
+  prefillMessage?: string | null;
   onConversationCreated?: (id: string) => void;
   onTitleUpdate?: (title: string) => void;
 }
 
-export function SegiChatView({ projectId, conversationId: initialConversationId, onConversationCreated, onTitleUpdate }: Props) {
+export function SegiChatView({ projectId, conversationId: initialConversationId, autoMessage, prefillRecording, prefillMessage, onConversationCreated, onTitleUpdate }: Props) {
+  const chatRouter = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [linkedRecordingId, setLinkedRecordingId] = useState<string | null>(null);
+  const [attachedRecording, setAttachedRecording] = useState<string | null>(null);
 
   const updateTitle = useCallback((title: string) => {
     onTitleUpdate?.(title);
@@ -153,7 +175,8 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const userScrolledUp = useRef(false);
-  const prevConversationIdRef = useRef<string | null | undefined>(initialConversationId);
+  const prevConversationIdRef = useRef<string | null | undefined>(undefined);
+  const autoMessageSentRef = useRef(false);
 
   useEffect(() => {
     if (initialConversationId === prevConversationIdRef.current) return;
@@ -179,6 +202,7 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
     } else {
       setMessages([]);
       setConversationId(null);
+      setLinkedRecordingId(null);
       updateTitle("");
     }
   }, [initialConversationId, updateTitle]);
@@ -201,6 +225,16 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
   }, []);
 
   useEffect(() => {
+    if (prefillRecording) {
+      setAttachedRecording(prefillRecording);
+    }
+    if (prefillMessage) {
+      setInput(prefillMessage);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [prefillRecording, prefillMessage]);
+
+  useEffect(() => {
     const handler = () => {
       abortRef.current?.abort();
       abortRef.current = null;
@@ -211,6 +245,8 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
       setIsStreaming(false);
       setIsThinking(false);
       setActiveToolCalls(new Map());
+      setAttachedRecording(null);
+      setLinkedRecordingId(null);
       updateTitle("");
       if (inputRef.current) inputRef.current.style.height = "auto";
       inputRef.current?.focus();
@@ -218,6 +254,50 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
     window.addEventListener("segi-new-chat", handler);
     return () => window.removeEventListener("segi-new-chat", handler);
   }, [updateTitle]);
+
+  useEffect(() => {
+    const handler = () => {
+      const lines: string[] = [];
+      for (const msg of messages) {
+        if (msg.type === "user") lines.push(`User: ${msg.content}\n`);
+        else if (msg.type === "assistant") lines.push(`Assistant: ${msg.content}\n`);
+        else if (msg.type === "analysis") {
+          const a = msg.analysis;
+          lines.push(`Session Analysis\n`);
+          lines.push(`Visitor: ${a.metadata.visitor}`);
+          lines.push(`Location: ${a.metadata.location}`);
+          lines.push(`Device: ${a.metadata.device}`);
+          lines.push(`Browser: ${a.metadata.browser}`);
+          lines.push(`Date: ${a.metadata.date}`);
+          lines.push(`Verdict: ${a.metadata.verdict}\n`);
+          lines.push(`Activity: ${a.activityOverview.sessions} sessions, ${a.activityOverview.pageviews} pageviews, ${a.activityOverview.rageClicks} rage clicks, ${a.activityOverview.timeOnSite}\n`);
+          lines.push(`Friction Score: ${a.frictionScore.score}/100 (${a.frictionScore.level})`);
+          lines.push(`${a.frictionScore.description}\n`);
+          if (a.frictionPoints.length) {
+            lines.push(`Friction Points:`);
+            a.frictionPoints.forEach(fp => lines.push(`  [${fp.severity}] ${fp.text}`));
+            lines.push("");
+          }
+          lines.push(`Journey: ${a.visitorJourney.join(" → ")}\n`);
+          if (a.recommendations.length) {
+            lines.push(`Recommendations:`);
+            a.recommendations.forEach(r => lines.push(`  ${r.title}: ${r.description}`));
+            lines.push("");
+          }
+          lines.push(`Verdict: "${a.verdict.summary}"\n`);
+        }
+      }
+      const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "session-analysis.txt";
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+    window.addEventListener("segi-export", handler);
+    return () => window.removeEventListener("segi-export", handler);
+  }, [messages]);
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
@@ -243,6 +323,7 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
       if (!res.ok) return;
       const data = await res.json();
       setConversationId(id);
+      setLinkedRecordingId(data.conversation.recordingSessionId || null);
 
       if (data.conversation.title) {
         updateTitle(data.conversation.title);
@@ -254,7 +335,18 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
         if (msg.role === "user") {
           loaded.push({ type: "user", content: msg.content });
         } else if (msg.role === "assistant" && msg.content) {
-          loaded.push({ type: "assistant", content: msg.content });
+          let parsed: SessionAnalysis | null = null;
+          try {
+            const obj = JSON.parse(msg.content);
+            if (obj && obj.metadata && obj.frictionScore && obj.verdict) {
+              parsed = obj as SessionAnalysis;
+            }
+          } catch { /* not JSON, regular message */ }
+          if (parsed) {
+            loaded.push({ type: "analysis", analysis: parsed });
+          } else {
+            loaded.push({ type: "assistant", content: msg.content });
+          }
         } else if (msg.role === "tool_use" && msg.toolName) {
           loaded.push({
             type: "tool",
@@ -279,12 +371,14 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
     }
   }
 
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
+  const sendMessage = useCallback(async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
     if (!text || isStreaming) return;
 
+    const currentAttachedRecording = attachedRecording;
     setInput("");
     setInputRows(1);
+    setAttachedRecording(null);
     if (inputRef.current) inputRef.current.style.height = "auto";
     setMessages((prev) => [...prev, { type: "user", content: text }]);
     setIsStreaming(true);
@@ -297,13 +391,36 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
 
     try {
       const token = getToken();
+
+      let chatConvId = conversationId;
+      if (currentAttachedRecording && !chatConvId) {
+        const analyzeRes = await fetch(`${API_URL}/api/projects/${projectId}/replays/${currentAttachedRecording}/analyze-chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: "{}",
+          signal: controller.signal,
+        });
+        if (analyzeRes.ok) {
+          const analyzeData = await analyzeRes.json();
+          chatConvId = analyzeData.conversationId;
+          setConversationId(chatConvId);
+          setLinkedRecordingId(currentAttachedRecording);
+          prevConversationIdRef.current = chatConvId;
+          onConversationCreated?.(chatConvId!);
+          window.dispatchEvent(new CustomEvent("segi-conversations-updated"));
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/projects/${projectId}/segi/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ conversationId, message: text }),
+        body: JSON.stringify({ conversationId: chatConvId, message: text }),
         signal: controller.signal,
       });
 
@@ -335,6 +452,12 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.type === "assistant" && last.streaming) {
+            try {
+              const obj = JSON.parse(last.content);
+              if (obj && obj.metadata && obj.frictionScore && obj.verdict) {
+                return [...prev.slice(0, -1), { type: "analysis" as const, analysis: obj as SessionAnalysis }];
+              }
+            } catch { /* not JSON, keep as text */ }
             return [...prev.slice(0, -1), { type: "assistant", content: last.content }];
           }
           return prev;
@@ -362,8 +485,12 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
           switch (event) {
             case "conversation":
               if (parsed.conversationId) {
+                const isNew = !chatConvId && (!conversationId || conversationId !== parsed.conversationId);
                 setConversationId(parsed.conversationId);
-                onConversationCreated?.(parsed.conversationId);
+                if (isNew) {
+                  prevConversationIdRef.current = parsed.conversationId;
+                  onConversationCreated?.(parsed.conversationId);
+                }
               }
               break;
 
@@ -432,6 +559,8 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
             case "done":
               if (hasStreamingMsg) {
                 finalizeStreaming();
+              } else if (!fullText) {
+                setMessages((prev) => [...prev, { type: "assistant", content: "I wasn't able to generate a response. Please try again." }]);
               }
               fullText = "";
               setIsStreaming(false);
@@ -491,7 +620,27 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
       setIsStreaming(false);
       setIsThinking(false);
     }
-  }, [input, isStreaming, projectId, conversationId, onConversationCreated, updateTitle]);
+  }, [input, isStreaming, projectId, conversationId, attachedRecording, onConversationCreated, updateTitle]);
+
+  useEffect(() => {
+    if (initialConversationId !== prevConversationIdRef.current) {
+      autoMessageSentRef.current = false;
+    }
+  }, [initialConversationId]);
+
+  useEffect(() => {
+    if (
+      autoMessage &&
+      !autoMessageSentRef.current &&
+      !loadingConversation &&
+      !isStreaming &&
+      conversationId &&
+      messages.length === 0
+    ) {
+      autoMessageSentRef.current = true;
+      sendMessage(autoMessage);
+    }
+  }, [autoMessage, loadingConversation, isStreaming, conversationId, messages.length, sendMessage]);
 
   function stopStreaming() {
     abortRef.current?.abort();
@@ -517,49 +666,72 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
 
   const hasMessages = messages.length > 0 || isStreaming;
 
+  const hasAttachment = !!attachedRecording;
+
   const inputBar = (
     <div className="max-w-3xl mx-auto w-full px-6 py-4">
-      <div className={`flex items-end gap-3 ${inputRows > 1 ? "rounded-3xl" : "rounded-full"} dark:bg-[#484848] bg-muted px-5 py-2.5 transition-[border-radius] duration-150`}>
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-          placeholder="Ask anything..."
-          rows={1}
-          className="flex-1 bg-transparent text-sm outline-none resize-none placeholder:text-muted-foreground/60 min-h-[24px] max-h-[120px] overflow-y-auto"
-          style={{ height: "auto" }}
-          onInput={(e) => {
-            const el = e.currentTarget;
-            el.style.height = "auto";
-            const h = Math.min(el.scrollHeight, 120);
-            el.style.height = h + "px";
-            setInputRows(h > 30 ? 2 : 1);
-          }}
-          disabled={isStreaming}
-        />
-        {isStreaming ? (
-          <button
-            onClick={stopStreaming}
-            className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shrink-0"
-            title="Stop"
-          >
-            <Square className="h-4 w-4 fill-current" />
-          </button>
-        ) : (
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim()}
-            className="p-2 rounded-full bg-primary text-primary-foreground disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 cursor-pointer"
-          >
-            <ArrowUp className="h-4 w-4" />
-          </button>
+      <div className={`flex flex-col ${hasAttachment ? "rounded-2xl" : inputRows > 1 ? "rounded-3xl" : "rounded-full"} dark:bg-[#484848] bg-muted transition-[border-radius] duration-150`}>
+        {attachedRecording && (
+          <div className="px-4 pt-3 pb-1">
+            <div className="relative inline-block rounded-lg overflow-hidden border dark:border-[#5a5a5a] w-[160px]">
+              <div className="bg-[#2a2a2a] p-2 flex flex-col items-center justify-center h-[100px]">
+                <PlayCircle className="size-8 text-muted-foreground/60 mb-1" />
+                <span className="text-[10px] text-muted-foreground/60">Session Recording</span>
+              </div>
+              <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+                <button
+                  onClick={() => setAttachedRecording(null)}
+                  className="p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
+                  title="Remove"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+        <div className={`flex items-end gap-3 px-5 py-2.5`}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="Ask anything..."
+            rows={1}
+            className="flex-1 bg-transparent text-sm outline-none resize-none placeholder:text-muted-foreground/60 min-h-[24px] max-h-[120px] overflow-y-auto"
+            style={{ height: "auto" }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = "auto";
+              const h = Math.min(el.scrollHeight, 120);
+              el.style.height = h + "px";
+              setInputRows(h > 30 ? 2 : 1);
+            }}
+            disabled={isStreaming}
+          />
+          {isStreaming ? (
+            <button
+              onClick={stopStreaming}
+              className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shrink-0"
+              title="Stop"
+            >
+              <Square className="h-4 w-4 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={() => sendMessage()}
+              disabled={!input.trim()}
+              className="p-2 rounded-full bg-primary text-primary-foreground disabled:opacity-30 hover:opacity-90 transition-opacity shrink-0 cursor-pointer"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -667,6 +839,21 @@ export function SegiChatView({ projectId, conversationId: initialConversationId,
               className="flex-1 overflow-y-auto min-h-0"
             >
               <div className="max-w-3xl mx-auto p-6 space-y-5">
+                {linkedRecordingId && (
+                  <button
+                    onClick={() => chatRouter.push(`/dashboard/projects/${projectId}?section=recordings&sessionId=${linkedRecordingId}`)}
+                    className="w-full flex items-center gap-3 rounded-xl border dark:border-[#484848] dark:bg-[#3d3d3d] bg-muted/40 px-4 py-3 text-left hover:dark:bg-[#484848] transition-colors cursor-pointer group"
+                  >
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-[#FA783E]/10">
+                      <PlayCircle className="size-5 text-[#FA783E]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium dark:text-white truncate">Session Recording</p>
+                      <p className="text-xs text-muted-foreground">Click to watch the recording</p>
+                    </div>
+                    <ChevronRight className="size-4 text-muted-foreground group-hover:dark:text-white transition-colors" />
+                  </button>
+                )}
                 {messages.map((msg, i) => (
                   <MessageBubble key={i} message={msg} projectId={projectId} />
                 ))}
@@ -730,6 +917,19 @@ function MessageBubble({ message, projectId }: { message: ChatMessage; projectId
     );
   }
 
+  if (message.type === "analysis") {
+    return (
+      <div className="flex gap-3">
+        <div className="shrink-0 mt-0.5">
+          <SegiOrb size={24} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <SessionAnalysisView analysis={message.analysis} />
+        </div>
+      </div>
+    );
+  }
+
   if (message.type === "tool") {
     return <ToolCard tool={message.tool} projectId={projectId} />;
   }
@@ -742,40 +942,44 @@ function ToolCard({ tool, projectId }: { tool: ToolCallState; projectId: string 
   const [downloading, setDownloading] = useState(false);
 
   const isRunning = tool.status === "running";
-  const isFilter = tool.name === "filter_visitors";
-  const isStats = tool.name === "query_visitor_stats";
-  const isExport = tool.name === "export_visitors";
-  const isClear = tool.name === "clear_filters";
-  const isVisitorDetail = tool.name === "get_visitor_details";
+  const toolName = tool.name;
 
   let icon;
   let label: string;
   let summary = "";
 
-  if (isFilter) {
-    icon = <Filter className="h-3.5 w-3.5" />;
-    label = isRunning ? "Filtering visitors..." : "Filtered visitors";
-    if (tool.result) summary = tool.result.summary || `${tool.result.matchedCount} visitors found`;
-  } else if (isVisitorDetail) {
-    icon = <User className="h-3.5 w-3.5" />;
-    label = isRunning ? "Looking up visitor..." : "Visitor details";
-    if (tool.result) summary = tool.result.visitor?.name || tool.result.error || "";
-  } else if (isClear) {
-    icon = <X className="h-3.5 w-3.5" />;
-    label = isRunning ? "Clearing filters..." : "Filters cleared";
-    if (tool.result) summary = tool.result.summary || "All filters removed";
-  } else if (isStats) {
-    icon = <BarChart3 className="h-3.5 w-3.5" />;
-    label = isRunning ? "Querying statistics..." : "Visitor statistics";
-    if (tool.result) summary = `${tool.result.totalVisitors} total visitors`;
-  } else if (isExport) {
-    icon = <Download className="h-3.5 w-3.5" />;
-    label = isRunning ? "Preparing export..." : "Export ready";
-    if (tool.result) summary = tool.result.summary || `${tool.result.recordCount} records`;
+  const toolConfig: Record<string, { icon: React.ReactNode; running: string; done: string; getSummary?: (r: any) => string }> = {
+    filter_visitors: { icon: <Filter className="h-3.5 w-3.5" />, running: "Filtering visitors...", done: "Filtered visitors", getSummary: (r) => r.summary || `${r.matchedCount} visitors found` },
+    get_visitor_details: { icon: <User className="h-3.5 w-3.5" />, running: "Looking up visitor...", done: "Visitor details", getSummary: (r) => r.visitor?.name || r.error || "" },
+    clear_filters: { icon: <X className="h-3.5 w-3.5" />, running: "Clearing filters...", done: "Filters cleared", getSummary: (r) => r.summary || "All filters removed" },
+    query_visitor_stats: { icon: <BarChart3 className="h-3.5 w-3.5" />, running: "Querying statistics...", done: "Visitor statistics", getSummary: (r) => `${r.totalVisitors} total visitors` },
+    export_visitors: { icon: <Download className="h-3.5 w-3.5" />, running: "Preparing export...", done: "Export ready", getSummary: (r) => r.summary || `${r.recordCount} records` },
+    analyze_funnel: { icon: <Zap className="h-3.5 w-3.5" />, running: "Analyzing funnel...", done: "Funnel analysis", getSummary: (r) => r.summary || "" },
+    analyze_traffic_sources: { icon: <Globe className="h-3.5 w-3.5" />, running: "Analyzing traffic sources...", done: "Traffic source analysis", getSummary: (r) => r.summary || "" },
+    analyze_page_performance: { icon: <FileBarChart className="h-3.5 w-3.5" />, running: "Analyzing pages...", done: "Page performance", getSummary: (r) => r.summary || "" },
+    compare_segments: { icon: <GitCompare className="h-3.5 w-3.5" />, running: "Comparing segments...", done: "Segment comparison", getSummary: (r) => r.summary || "" },
+    find_drop_offs: { icon: <LogOut className="h-3.5 w-3.5" />, running: "Finding drop-offs...", done: "Drop-off analysis", getSummary: (r) => r.summary || "" },
+    analyze_behavior_patterns: { icon: <Brain className="h-3.5 w-3.5" />, running: "Analyzing behavior...", done: "Behavior patterns", getSummary: (r) => r.summary || "" },
+    analyze_trends: { icon: <Activity className="h-3.5 w-3.5" />, running: "Analyzing trends...", done: "Trend analysis", getSummary: (r) => r.summary || "" },
+    fetch_page_content: { icon: <Eye className="h-3.5 w-3.5" />, running: "Analyzing page...", done: "Page analyzed", getSummary: (r) => r.title ? `${r.title}` : r.url || "" },
+    load_cro_skill: { icon: <BookOpen className="h-3.5 w-3.5" />, running: "Loading expertise...", done: "Loaded expertise", getSummary: (r) => r.skill ? `${r.skill} skill` : "" },
+  };
+
+  const config = toolConfig[toolName];
+  if (config) {
+    icon = config.icon;
+    label = isRunning ? config.running : config.done;
+    if (tool.result && config.getSummary) summary = config.getSummary(tool.result);
   } else {
     icon = <Loader2 className="h-3.5 w-3.5" />;
-    label = tool.name;
+    label = toolName;
   }
+
+  const isFilter = toolName === "filter_visitors";
+  const isStats = toolName === "query_visitor_stats";
+  const isExport = toolName === "export_visitors";
+  const isVisitorDetail = toolName === "get_visitor_details";
+  const isCroTool = ["analyze_funnel", "analyze_traffic_sources", "analyze_page_performance", "compare_segments", "find_drop_offs", "analyze_behavior_patterns", "analyze_trends", "fetch_page_content"].includes(toolName);
 
   async function handleDownload() {
     if (!tool.result || downloading) return;
@@ -829,7 +1033,7 @@ function ToolCard({ tool, projectId }: { tool: ToolCallState; projectId: string 
     );
   }
 
-  const hasExpandable = !isRunning && tool.result && (isStats || isFilter || isVisitorDetail);
+  const hasExpandable = !isRunning && tool.result && (isStats || isFilter || isVisitorDetail || isCroTool);
 
   return (
     <div className="ml-8">
@@ -898,6 +1102,154 @@ function ToolCard({ tool, projectId }: { tool: ToolCallState; projectId: string 
                         <span className="font-medium">{String(v)}</span>
                       </div>
                     ))}
+                  </div>
+                )}
+                {toolName === "analyze_funnel" && tool.result.steps && (
+                  <div className="mt-2 space-y-2">
+                    {tool.result.steps.map((step: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="truncate font-medium">{step.step}</span>
+                            <span className="text-muted-foreground tabular-nums shrink-0 ml-2">{step.visitors}</span>
+                          </div>
+                          <div className="mt-1 h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${step.conversionFromFirst}%` }} />
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground tabular-nums w-12 text-right shrink-0">{step.conversionFromFirst}%</span>
+                      </div>
+                    ))}
+                    <div className="text-xs text-muted-foreground pt-1 border-t">
+                      Overall: {tool.result.overallConversion}% · Biggest drop: {tool.result.biggestDropOff} (-{tool.result.biggestDropOffRate?.toFixed(1)}%)
+                    </div>
+                  </div>
+                )}
+                {toolName === "analyze_traffic_sources" && tool.result.sources && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-[1fr,auto,auto,auto] gap-x-3 gap-y-1 text-xs">
+                      <span className="text-muted-foreground font-medium">Source</span>
+                      <span className="text-muted-foreground font-medium text-right">Visitors</span>
+                      <span className="text-muted-foreground font-medium text-right">Conv %</span>
+                      <span className="text-muted-foreground font-medium text-right">Revenue</span>
+                      {tool.result.sources.slice(0, 10).map((s: any, i: number) => (
+                        <React.Fragment key={i}>
+                          <span className="text-sm truncate">{s.source}</span>
+                          <span className="text-sm tabular-nums text-right">{s.visitors}</span>
+                          <span className={`text-sm tabular-nums text-right ${s.conversionRate >= 10 ? "text-green-500" : s.conversionRate >= 5 ? "text-yellow-500" : "text-red-400"}`}>{s.conversionRate}%</span>
+                          <span className="text-sm tabular-nums text-right">${((s.revenue || 0) / 100).toFixed(0)}</span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {toolName === "analyze_page_performance" && tool.result.pages && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-[1fr,auto,auto,auto] gap-x-3 gap-y-1 text-xs">
+                      <span className="text-muted-foreground font-medium">Page</span>
+                      <span className="text-muted-foreground font-medium text-right">Views</span>
+                      <span className="text-muted-foreground font-medium text-right">Avg Time</span>
+                      <span className="text-muted-foreground font-medium text-right">Exit %</span>
+                      {tool.result.pages.slice(0, 10).map((p: any, i: number) => (
+                        <React.Fragment key={i}>
+                          <span className="text-sm truncate" title={p.url}>{p.url.replace(/^https?:\/\/[^/]+/, "")}</span>
+                          <span className="text-sm tabular-nums text-right">{p.pageviews}</span>
+                          <span className="text-sm tabular-nums text-right">{p.avgDuration}s</span>
+                          <span className={`text-sm tabular-nums text-right ${p.exitRate >= 40 ? "text-red-400" : "text-muted-foreground"}`}>{p.exitRate}%</span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {toolName === "compare_segments" && tool.result.segmentA && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-[1fr,auto,auto] gap-x-4 gap-y-1.5 text-sm">
+                      <span className="text-muted-foreground font-medium" />
+                      <span className="font-medium text-right">{tool.result.segmentA.label}</span>
+                      <span className="font-medium text-right">{tool.result.segmentB.label}</span>
+                      {[
+                        ["Visitors", tool.result.segmentA.visitors, tool.result.segmentB.visitors],
+                        ["Identified", `${tool.result.segmentA.identifiedRate}%`, `${tool.result.segmentB.identifiedRate}%`],
+                        ["Paid", `${tool.result.segmentA.paidRate}%`, `${tool.result.segmentB.paidRate}%`],
+                        ["Avg Pages", tool.result.segmentA.avgPageviews, tool.result.segmentB.avgPageviews],
+                        ["Avg Sessions", tool.result.segmentA.avgSessions, tool.result.segmentB.avgSessions],
+                      ].map(([metric, a, b]) => (
+                        <React.Fragment key={String(metric)}>
+                          <span className="text-muted-foreground">{String(metric)}</span>
+                          <span className="tabular-nums text-right">{String(a)}</span>
+                          <span className="tabular-nums text-right">{String(b)}</span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {toolName === "find_drop_offs" && tool.result.dropOffs && (
+                  <div className="mt-2 space-y-1.5">
+                    {tool.result.dropOffs.slice(0, 8).map((d: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className={`inline-block size-2 rounded-full shrink-0 ${d.exitRate >= 50 ? "bg-red-500" : d.exitRate >= 30 ? "bg-orange-400" : "bg-yellow-400"}`} />
+                        <span className="truncate flex-1" title={d.page}>{d.page.replace(/^https?:\/\/[^/]+/, "")}</span>
+                        <span className="text-muted-foreground tabular-nums shrink-0">{d.exitRate}% exit · {d.exits} exits</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {toolName === "analyze_behavior_patterns" && tool.result.converters && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-[1fr,auto,auto] gap-x-4 gap-y-1.5 text-sm">
+                      <span className="text-muted-foreground font-medium" />
+                      <span className="font-medium text-right text-green-500">Converters</span>
+                      <span className="font-medium text-right text-muted-foreground">Others</span>
+                      {[
+                        ["Count", tool.result.converters.count, tool.result.nonConverters.count],
+                        ["Avg Pages", tool.result.converters.avgPageviews, tool.result.nonConverters.avgPageviews],
+                        ["Avg Sessions", tool.result.converters.avgSessions, tool.result.nonConverters.avgSessions],
+                        ["Avg Events", tool.result.converters.avgEvents, tool.result.nonConverters.avgEvents],
+                      ].map(([metric, a, b]) => (
+                        <React.Fragment key={String(metric)}>
+                          <span className="text-muted-foreground">{String(metric)}</span>
+                          <span className="tabular-nums text-right">{String(a)}</span>
+                          <span className="tabular-nums text-right">{String(b)}</span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    {tool.result.converters.topPages?.length > 0 && (
+                      <div className="mt-2 pt-2 border-t">
+                        <span className="text-xs text-muted-foreground">Top converter pages: </span>
+                        <span className="text-xs">{tool.result.converters.topPages.slice(0, 5).map((p: any) => p.url.replace(/^https?:\/\/[^/]+/, "")).join(", ")}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {toolName === "analyze_trends" && tool.result.current && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-muted-foreground">Current ({tool.result.days}d):</span>
+                      <span className="font-medium tabular-nums">{tool.result.metric === "bounceRate" ? tool.result.current.dailyAvg + "%" : tool.result.current.total}</span>
+                      {tool.result.previous && (
+                        <>
+                          <span className="text-muted-foreground">vs previous:</span>
+                          <span className={`font-medium tabular-nums flex items-center gap-1 ${tool.result.changePercent > 0 ? (tool.result.metric === "bounceRate" ? "text-red-400" : "text-green-500") : (tool.result.metric === "bounceRate" ? "text-green-500" : "text-red-400")}`}>
+                            {tool.result.changePercent > 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                            {tool.result.changePercent > 0 ? "+" : ""}{tool.result.changePercent}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {tool.result.alerts?.length > 0 && (
+                      <div className="text-xs text-orange-400">
+                        {tool.result.alerts.map((a: string, i: number) => <div key={i}>⚠ {a}</div>)}
+                      </div>
+                    )}
+                    {tool.result.current.dataPoints?.length > 0 && (
+                      <div className="flex items-end gap-[2px] h-10">
+                        {tool.result.current.dataPoints.map((dp: any, i: number) => {
+                          const max = Math.max(...tool.result.current.dataPoints.map((d: any) => d.value || 0), 1);
+                          const h = Math.max(((dp.value || 0) / max) * 100, 4);
+                          return <div key={i} className="flex-1 rounded-sm bg-primary/60 min-w-[2px]" style={{ height: `${h}%` }} title={`${dp.date}: ${dp.value}`} />;
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

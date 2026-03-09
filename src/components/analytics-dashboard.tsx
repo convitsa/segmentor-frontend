@@ -394,21 +394,30 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                 <p className="text-[24px] font-bold leading-normal dark:text-white">{overviewData.totalVisitors.toLocaleString()}</p>
                 <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Visitors</p>
               </div>
-              <DeltaBadge current={overviewData.totalVisitors} previous={overviewData.previousPeriod.totalVisitors} />
+              <div className="flex items-center gap-2">
+                <DeltaBadge current={overviewData.totalVisitors} previous={overviewData.previousPeriod.totalVisitors} />
+                <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground">vs last week</span>
+              </div>
             </div>
             <div className="rounded-2xl border dark:border-[#484848] bg-transparent p-4 flex flex-col justify-between h-[164px]">
               <div className="flex flex-col gap-2">
                 <p className="text-[24px] font-bold leading-normal dark:text-white">{overviewData.totalSessions.toLocaleString()}</p>
                 <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Sessions</p>
               </div>
-              <DeltaBadge current={overviewData.totalSessions} previous={overviewData.previousPeriod.totalSessions} />
+              <div className="flex items-center gap-2">
+                <DeltaBadge current={overviewData.totalSessions} previous={overviewData.previousPeriod.totalSessions} />
+                <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground">vs last week</span>
+              </div>
             </div>
             <div className="rounded-2xl border dark:border-[#484848] bg-transparent p-4 flex flex-col justify-between h-[164px]">
               <div className="flex flex-col gap-2">
                 <p className="text-[24px] font-bold leading-normal dark:text-white">{overviewData.totalPageviews.toLocaleString()}</p>
                 <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Pageviews</p>
               </div>
-              <DeltaBadge current={overviewData.totalPageviews} previous={overviewData.previousPeriod.totalPageviews} />
+              <div className="flex items-center gap-2">
+                <DeltaBadge current={overviewData.totalPageviews} previous={overviewData.previousPeriod.totalPageviews} />
+                <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground">vs last week</span>
+              </div>
             </div>
             <div className="rounded-2xl border dark:border-[#484848] bg-transparent p-4 flex flex-col justify-between h-[164px]">
               <div className="flex flex-col gap-2">
@@ -422,7 +431,10 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
                 </div>
                 <p className="text-xs dark:text-[#C2C0B6] text-muted-foreground">Revenue</p>
               </div>
-              <DeltaBadge current={overviewData.totalRevenue} previous={overviewData.previousPeriod.totalRevenue} />
+              <div className="flex items-center gap-2">
+                <DeltaBadge current={overviewData.totalRevenue} previous={overviewData.previousPeriod.totalRevenue} />
+                <span className="text-xs dark:text-[#C2C0B6] text-muted-foreground">vs last week</span>
+              </div>
             </div>
           </div>
 

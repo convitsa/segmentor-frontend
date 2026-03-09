@@ -36,6 +36,7 @@ import {
   Settings,
   Loader2,
   Boxes,
+  PlayCircle,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { ElementEditor } from "@/components/element-editor";
@@ -51,7 +52,8 @@ import {
 } from "@/components/ui/sheet";
 import { IntegrationsSettings } from "@/components/integrations-settings";
 import { SegiChatView } from "@/components/segi-chat-view";
-import { ReplaysDashboard } from "@/components/replays-dashboard";
+import { RecordingsDashboard } from "@/components/recordings-dashboard";
+import { SessionPlayer } from "@/components/session-player";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -180,6 +182,10 @@ function ProjectContent() {
   const projectId = params.id as string;
   const section = searchParams.get("section") || "dashboard";
   const chatConversationId = searchParams.get("conversationId") || null;
+  const chatAutoMessage = searchParams.get("autoMessage") || null;
+  const prefillRecording = searchParams.get("prefillRecording") || null;
+  const prefillMessage = searchParams.get("prefillMessage") || null;
+  const recordingSessionId = searchParams.get("sessionId") || null;
 
   const [project, setProject] = useState<ProjectDTO | null>(null);
   const [elements, setElements] = useState<ElementConfigDTO[]>([]);
@@ -612,6 +618,9 @@ function ProjectContent() {
         <SegiChatView
           projectId={projectId}
           conversationId={chatConversationId}
+          autoMessage={chatAutoMessage}
+          prefillRecording={prefillRecording}
+          prefillMessage={prefillMessage}
           onConversationCreated={(id) => {
             router.replace(`/dashboard/projects/${projectId}?section=chat&conversationId=${id}`);
             window.dispatchEvent(new CustomEvent("segi-conversations-updated"));
@@ -792,9 +801,25 @@ function ProjectContent() {
         <AnalyticsDashboard projectId={projectId} elements={elements} />
       )}
 
-      {/* ========== REPLAYS ========== */}
-      {section === "replays" && (
-        <ReplaysDashboard projectId={projectId} />
+      {/* ========== RECORDINGS ========== */}
+      {section === "recordings" && (
+        recordingSessionId ? (
+          <SessionPlayer
+            projectId={projectId}
+            sessionId={recordingSessionId}
+            onBack={() => router.push(`/dashboard/projects/${projectId}?section=recordings`)}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+              <PlayCircle className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-lg font-semibold mb-2 dark:text-white">Session Recordings</h2>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Select a recording from the sidebar to watch it here.
+            </p>
+          </div>
+        )
       )}
 
       {/* ========== INTEGRATIONS ========== */}
@@ -926,7 +951,7 @@ function ProjectContent() {
             </CardContent>
           </Card>
 
-          {/* Session Replays */}
+          {/* Session Recordings */}
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -934,9 +959,9 @@ function ProjectContent() {
                   <Settings className="h-4 w-4" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Session Replays</CardTitle>
+                  <CardTitle className="text-base">Session Recordings</CardTitle>
                   <CardDescription>
-                    Record visitor sessions to replay them later in the dashboard
+                    Record visitor sessions to watch them later in the dashboard
                   </CardDescription>
                 </div>
               </div>
@@ -945,7 +970,7 @@ function ProjectContent() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">Enable session replays</p>
+                    <p className="text-sm font-medium">Enable session recordings</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Capture DOM interactions for playback. Privacy-safe: all inputs are masked by default.
                     </p>
@@ -961,7 +986,7 @@ function ProjectContent() {
                           recordingEnabled: newValue,
                         });
                         setProject(updated);
-                        toast.success(newValue ? "Session replays enabled" : "Session replays disabled");
+                        toast.success(newValue ? "Session recordings enabled" : "Session recordings disabled");
                       } catch {
                         toast.error("Failed to update setting");
                       }

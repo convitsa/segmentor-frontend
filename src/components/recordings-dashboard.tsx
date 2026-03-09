@@ -98,7 +98,7 @@ interface Props {
   projectId: string;
 }
 
-export function ReplaysDashboard({ projectId }: Props) {
+export function RecordingsDashboard({ projectId }: Props) {
   const [replays, setReplays] = useState<ReplayDTO[]>([]);
   const [pagination, setPagination] = useState<PaginationDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,7 +216,7 @@ export function ReplaysDashboard({ projectId }: Props) {
         )}
       </div>
 
-      {/* Replay list */}
+      {/* Recording list */}
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -228,9 +228,9 @@ export function ReplaysDashboard({ projectId }: Props) {
           <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
             <Play className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-lg font-semibold mb-2">No replays yet</h2>
+          <h2 className="text-lg font-semibold mb-2">No recordings yet</h2>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Enable session replays in your project settings and visitor sessions
+            Enable session recordings in your project settings and visitor sessions
             will appear here.
           </p>
         </div>
@@ -317,7 +317,7 @@ export function ReplaysDashboard({ projectId }: Props) {
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-muted-foreground">
-            {pagination.total} replay{pagination.total !== 1 ? "s" : ""}
+            {pagination.total} recording{pagination.total !== 1 ? "s" : ""}
           </p>
           <div className="flex items-center gap-2">
             <Button
