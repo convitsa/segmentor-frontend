@@ -55,6 +55,7 @@ import { SegiChatView } from "@/components/segi-chat-view";
 import { SegiOrb } from "@/components/segi-orb";
 import { RecordingsDashboard } from "@/components/recordings-dashboard";
 import { SessionPlayer } from "@/components/session-player";
+import { HeatmapViewer } from "@/components/heatmap-viewer";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -800,6 +801,11 @@ function ProjectContent() {
       {/* ========== ANALYTICS ========== */}
       {section === "analytics" && (
         <AnalyticsDashboard projectId={projectId} elements={elements} />
+      )}
+
+      {/* ========== HEATMAPS ========== */}
+      {section === "heatmaps" && (
+        <HeatmapViewer projectId={projectId} siteUrl={project.siteUrl} />
       )}
 
       {/* ========== RECORDINGS ========== */}

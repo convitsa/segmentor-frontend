@@ -59,7 +59,8 @@ if (existsSync(rrwebUmdPath)) {
     .replace(/'rrweb'/g, "'_sr'")
     .replace(/"rrweb"/g, '"_sr"')
     .replace(/recording/gi, "cap")
-    .replace(/snapshot/gi, "snap");
+    .replace(/snapshot/gi, "snap")
+    .replace(/heatmap/gi, "_ht_");
 
   console.log("Bundled @rrweb/record into runtime.js (keywords scrubbed)");
 } else {
@@ -97,6 +98,16 @@ const result = JavaScriptObfuscator.obfuscate(combined, {
     "cdn.jsdelivr.net",
     "unpkg.com",
     "\\[Segmentor\\]",
+    "hm_click",
+    "hm_move",
+    "hm_scroll",
+    "cobrowse",
+    "cb_visitor_ready",
+    "cb_rrweb",
+    "cb_cursor",
+    "cb_highlight",
+    "cb_agent_joined",
+    "/ws/visitor",
   ],
 });
 

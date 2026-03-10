@@ -38,6 +38,7 @@
     "recharts": "^3.7.0",
     "rrweb": "^2.0.0-alpha.17",
     "rrweb-player": "^2.0.0-alpha.17",
+    "simpleheat": "^0.4.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"

@@ -55,7 +55,9 @@ import {
   Filter,
   RotateCcw,
   X,
+  Radio,
 } from "lucide-react";
+import { CobrowsePanel } from "@/components/cobrowse-panel";
 
 /* ─── Friendly Name Generator ─── */
 
@@ -707,7 +709,7 @@ function FilterSelect({ label, value, onChange, options }: {
 /* ─── Visitor Row (like the reference design) ─── */
 
 function VisitorRow({ visitor: v, onClick }: { visitor: VisitorDTO; onClick: () => void }) {
-  const isLive = Date.now() - new Date(v.lastSeenAt).getTime() < 5 * 60 * 1000;
+  const isLive = isVisitorLive(v);
 
   return (
     <Card
@@ -803,6 +805,7 @@ export function VisitorDetailPanel({
   const [timelinePagination, setTimelinePagination] = useState<PaginationDTO | null>(null);
   const [timelinePage, setTimelinePage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [cobrowseOpen, setCobrowseOpen] = useState(false);
   const nextUid = useRef(0);
   const newTimelineUids = useRef(new Set<number>());
 
@@ -1008,6 +1011,19 @@ export function VisitorDetailPanel({
             <StatBox icon={<DollarSign className="h-3.5 w-3.5" />} label="Revenue" value={visitor.totalRevenue > 0 ? formatRevenue(visitor.totalRevenue) : "$0"} />
           </div>
 
+          {isVisitorLive(visitor) && sessions.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 text-xs"
+              onClick={() => setCobrowseOpen(true)}
+              disabled={cobrowseOpen}
+            >
+              <Radio className="h-3.5 w-3.5 text-green-500" />
+              {cobrowseOpen ? "Co-browsing..." : "Co-browse Live Session"}
+            </Button>
+          )}
+
           {/* Purchases */}
           {purchases.length > 0 && (
             <div className="space-y-2 pt-2 border-t">
@@ -1125,8 +1141,23 @@ export function VisitorDetailPanel({
           </ScrollArea>
         </div>
       </div>
+
+      {cobrowseOpen && sessions.length > 0 && (
+        <div className="border-t dark:border-[#484848]" style={{ height: "50%" }}>
+          <CobrowsePanel
+            projectId={projectId}
+            sessionId={sessions[0].sessionId}
+            visitorId={visitorId}
+            onClose={() => setCobrowseOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
+}
+
+function isVisitorLive(v: VisitorDTO) {
+  return Date.now() - new Date(v.lastSeenAt).getTime() < 5 * 60 * 1000;
 }
 
 /* ─── Stat Box ─── */

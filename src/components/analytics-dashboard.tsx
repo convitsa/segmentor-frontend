@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
+import { useSocket } from "@/lib/use-socket";
 import { Favicon } from "@/components/favicon";
 import type { ElementConfigDTO } from "@/lib/types/dto";
 import {
@@ -257,6 +258,30 @@ export function AnalyticsDashboard({ projectId, elements }: Props) {
   }, [projectId, days, filters]);
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
+
+  const seenVisitors = useRef(new Set<string>());
+
+  useSocket(projectId, useCallback((event) => {
+    if (event.type !== "analytics:activity") return;
+    const d = event.data as Record<string, unknown>;
+    setOverviewData((prev) => {
+      if (!prev) return prev;
+      const pvs = (d.pageviews as number) || 0;
+      const evts = (d.events as number) || 0;
+      const vid = d.visitorId as string;
+      let newVisitors = 0;
+      if (vid && !seenVisitors.current.has(vid)) {
+        seenVisitors.current.add(vid);
+        newVisitors = 1;
+      }
+      return {
+        ...prev,
+        totalPageviews: prev.totalPageviews + pvs,
+        totalVisitors: prev.totalVisitors + newVisitors,
+        totalSessions: prev.totalSessions + (newVisitors > 0 ? 1 : 0),
+      };
+    });
+  }, []));
 
   const countryOptions = useMemo(() =>
     (overviewData?.filterOptions?.countries ?? []).map((c) => {

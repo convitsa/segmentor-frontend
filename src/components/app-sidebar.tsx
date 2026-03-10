@@ -67,6 +67,7 @@ import {
   Monitor,
   Smartphone,
   Tablet,
+  Flame,
 } from "lucide-react"
 import { SegiOrb } from "@/components/segi-orb"
 
@@ -127,6 +128,7 @@ const NAV_GROUPS = [
     label: "Insights",
     items: [
       { key: "analytics", label: "Analytics", icon: BarChart3 },
+      { key: "heatmaps", label: "Heatmaps", icon: Flame },
       { key: "visitors", label: "Visitors", icon: Globe },
       { key: "recordings", label: "Recordings", icon: PlayCircle },
       { key: "editor", label: "Editor", icon: Pencil },

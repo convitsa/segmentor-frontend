@@ -24,6 +24,7 @@ export type SocketEvent = {
 
 const LIVE_EVENTS = new Set([
   "visitor_update",
+  "visitor_offline",
   "purchase",
   "live:pageview",
   "live:pageview_end",
@@ -32,6 +33,10 @@ const LIVE_EVENTS = new Set([
   "live:identify",
   "live:custom",
   "live:impression",
+  "recording:update",
+  "recording:end",
+  "analytics:activity",
+  "heatmap:new",
 ]);
 
 const RECONNECT_BASE_MS = 1000;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import { useSocket } from "@/lib/use-socket";
 import type { ReplayDTO, PaginationDTO } from "@/lib/types/dto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,6 +144,49 @@ export function RecordingsDashboard({ projectId }: Props) {
   useEffect(() => {
     setPage(1);
   }, [search, device, minDuration]);
+
+  useSocket(projectId, useCallback((event) => {
+    if (event.type === "recording:update") {
+      const d = event.data as Record<string, unknown>;
+      setReplays((prev) => {
+        const idx = prev.findIndex((r) => r.sessionId === d.sessionId);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], status: (d.status as string) || updated[idx].status };
+          return updated;
+        }
+        const newReplay: ReplayDTO = {
+          id: (d.sessionId as string) || "",
+          sessionId: (d.sessionId as string) || "",
+          visitorId: (d.visitorId as string) || "",
+          visitorName: "",
+          startedAt: new Date().toISOString(),
+          endedAt: null as any,
+          entryUrl: (d.entryUrl as string) || "",
+          device: (d.device as string) || null,
+          browser: null,
+          os: null,
+          country: null,
+          countryCode: null,
+          duration: 0,
+          pageCount: 0,
+          clickCount: 0,
+          chunkCount: (d.chunkCount as number) || 0,
+          totalSize: 0,
+          status: (d.status as string) || "recording",
+          visitorEmail: null,
+        };
+        return [newReplay, ...prev];
+      });
+    } else if (event.type === "recording:end") {
+      const d = event.data as Record<string, unknown>;
+      setReplays((prev) =>
+        prev.map((r) =>
+          r.sessionId === d.sessionId ? { ...r, status: "complete" } : r
+        ),
+      );
+    }
+  }, []));
 
   async function deleteReplay(sessionId: string, e: React.MouseEvent) {
     e.stopPropagation();

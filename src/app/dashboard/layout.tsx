@@ -18,6 +18,7 @@ const SECTION_TITLES: Record<string, string> = {
   personalizations: "Personalizations",
   audiences: "Audiences",
   analytics: "Analytics",
+  heatmaps: "Heatmaps",
   recordings: "Session Recordings",
   setup: "Setup",
   settings: "Settings",
