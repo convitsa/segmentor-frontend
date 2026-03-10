@@ -53,11 +53,13 @@ export function CobrowsePanel({ projectId, sessionId, visitorId, onClose }: Prop
             setStatus("active");
           }
 
-          if (msg.type === "cb_rrweb" && msg.events) {
+          if (msg.type === "cb_rrweb" && Array.isArray(msg.events) && msg.events.length > 0) {
             eventsRef.current.push(...msg.events);
             await renderReplay(msg.events);
           }
-        } catch {}
+        } catch (err) {
+          console.error("[CobrowsePanel] ws message error:", err);
+        }
       };
 
       ws.onclose = () => {
@@ -76,30 +78,49 @@ export function CobrowsePanel({ projectId, sessionId, visitorId, onClose }: Prop
     if (!replayRef.current) return;
 
     if (!playerRef.current) {
+      if (eventsRef.current.length < 2) return;
+
+      const hasSnapshot = eventsRef.current.some(
+        (e: any) => e.type === 2 || e.type === "FullSnapshot",
+      );
+      if (!hasSnapshot) return;
+
       try {
         const rrwebPlayer = await import("rrweb-player");
-        const RRWebPlayer = rrwebPlayer.default || rrwebPlayer;
+        await import("rrweb-player/dist/style.css");
 
-        if (eventsRef.current.length < 2) return;
+        if (!replayRef.current) return;
+        replayRef.current.innerHTML = "";
+
+        const RRWebPlayer =
+          rrwebPlayer.default || (rrwebPlayer as any).Player || rrwebPlayer;
+
+        const w = replayRef.current.clientWidth;
+        const h = Math.min(w * 0.5625, window.innerHeight - 200);
 
         playerRef.current = new RRWebPlayer({
           target: replayRef.current,
           props: {
             events: eventsRef.current,
-            width: replayRef.current.clientWidth,
-            height: replayRef.current.clientHeight - 80,
+            width: w,
+            height: Math.max(h, 300),
             autoPlay: true,
             showController: false,
             liveMode: true,
+            skipInactive: true,
           },
         });
-      } catch {}
+      } catch (err) {
+        console.error("[CobrowsePanel] Failed to init player:", err);
+      }
     } else {
       try {
         for (const event of events) {
           playerRef.current.addEvent(event);
         }
-      } catch {}
+      } catch (err) {
+        console.error("[CobrowsePanel] addEvent error:", err);
+      }
     }
   }
 

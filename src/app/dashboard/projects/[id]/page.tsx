@@ -55,6 +55,7 @@ import { SegiChatView } from "@/components/segi-chat-view";
 import { SegiOrb } from "@/components/segi-orb";
 import { RecordingsDashboard } from "@/components/recordings-dashboard";
 import { SessionPlayer } from "@/components/session-player";
+import { LiveSessionViewer } from "@/components/live-session-viewer";
 import { HeatmapViewer } from "@/components/heatmap-viewer";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -188,6 +189,8 @@ function ProjectContent() {
   const prefillRecording = searchParams.get("prefillRecording") || null;
   const prefillMessage = searchParams.get("prefillMessage") || null;
   const recordingSessionId = searchParams.get("sessionId") || null;
+  const isLiveRecording = searchParams.get("live") === "1";
+  const liveVisitorId = searchParams.get("visitorId") || null;
 
   const [project, setProject] = useState<ProjectDTO | null>(null);
   const [elements, setElements] = useState<ElementConfigDTO[]>([]);
@@ -810,7 +813,14 @@ function ProjectContent() {
 
       {/* ========== RECORDINGS ========== */}
       {section === "recordings" && (
-        recordingSessionId ? (
+        recordingSessionId && isLiveRecording && liveVisitorId ? (
+          <LiveSessionViewer
+            projectId={projectId}
+            sessionId={recordingSessionId}
+            visitorId={liveVisitorId}
+            onBack={() => router.push(`/dashboard/projects/${projectId}?section=recordings`)}
+          />
+        ) : recordingSessionId ? (
           <SessionPlayer
             projectId={projectId}
             sessionId={recordingSessionId}
